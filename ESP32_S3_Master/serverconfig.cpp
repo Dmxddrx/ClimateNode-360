@@ -19,7 +19,7 @@ bool isTimeToUpload() {
 }
 
 void uploadBatch() {
-    Serial.println("Connecting to Wi-Fi...");
+    DEBUG_PRINTLN("Connecting to Wi-Fi...");
     WiFi.begin(WIFI_SSID, WIFI_PASS);
     while(WiFi.status() != WL_CONNECTED) delay(300);
 
@@ -31,9 +31,9 @@ void uploadBatch() {
     int httpCode = http.POST(payload);
 
     if(httpCode > 0){
-        Serial.printf("Upload success: %d\n", httpCode);
+        DEBUG_PRINTF("Upload success: %d\n", httpCode);
     } else {
-        Serial.println("Upload failed");
+        DEBUG_PRINTLN("Upload failed");
     }
 
     http.end();

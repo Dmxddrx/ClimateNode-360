@@ -2,14 +2,15 @@
 #include <SPI.h>
 #include <SD.h>
 #include "espnow.h"
+#include "debugmode.h"
 
 #define CS_PIN 10
 
 void initSD() {
     if(!SD.begin(CS_PIN)){
-        Serial.println("SD init failed!");
+        DEBUG_PRINTLN("SD init failed!");
     } else {
-        Serial.println("SD initialized");
+        DEBUG_PRINTLN("SD initialized");
     }
 }
 
@@ -18,7 +19,7 @@ void saveBufferedDataToSD() {
 
     File file = SD.open("/log.csv", FILE_APPEND);
     if(!file){
-        Serial.println("Failed to open file!");
+        DEBUG_PRINTLN("Failed to open file!");
         return;
     }
 
@@ -30,6 +31,6 @@ void saveBufferedDataToSD() {
             receivedData[i].dust / 10.0);
     }
     file.close();
-    Serial.printf("%d records saved to SD\n", receivedCount);
+    DEBUG_PRINTF("%d records saved to SD\n", receivedCount);
     receivedCount = 0;
 }
