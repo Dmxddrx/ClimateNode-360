@@ -2,16 +2,10 @@
 #define GENERAL_H
 
 #include <Arduino.h>
+#include "datatypes.h"
 
-#define NODE_ID 1
-#define SAMPLE_INTERVAL_SEC 60
-
-struct SensorData {
-  uint8_t nodeId;
-  float temperature;
-  float humidity;
-  float dust;
-};
+#define NODE_ID 1            // Change per node
+#define SAMPLE_INTERVAL_SEC 60  // Sleep interval
 
 void initGeneral();
 void goDeepSleep(uint32_t seconds);

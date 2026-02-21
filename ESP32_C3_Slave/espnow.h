@@ -1,7 +1,7 @@
 #ifndef ESPNOW_H
 #define ESPNOW_H
 
-#include "general.h"
+#include "datatypes.h"
 
 void initESPNow();
 void sendToMaster(SensorData &data);

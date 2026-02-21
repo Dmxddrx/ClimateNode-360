@@ -6,22 +6,24 @@
 
 void setup() {
 
-  initGeneral();
-  initSensors();
-  initESPNow();
+    initGeneral();
+    initSensors();
+    initDustSensor();
+    initESPNow();
 
-  SensorData data;
+    SensorData data;
+    data.nodeId = NODE_ID;
+    data.temperature = readTemperature();
+    data.humidity = readHumidity();
+    data.dust = readDust();
 
-  data.nodeId = NODE_ID;
-  data.temperature = readTemperature();
-  data.humidity = readHumidity();
-  data.dust = readDust();
+    sendToMaster(data);
 
-  sendToMaster(data);
+    delay(200);  // ensure ESP-NOW send completes
 
-  delay(200);
-
-  goDeepSleep(SAMPLE_INTERVAL_SEC);
+    goDeepSleep(SAMPLE_INTERVAL_SEC);
 }
 
-void loop(){}
+void loop() {
+    // Nothing to do, all handled in setup + deep sleep
+}

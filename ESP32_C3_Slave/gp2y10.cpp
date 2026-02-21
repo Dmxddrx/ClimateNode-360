@@ -1,17 +1,24 @@
+#include "gp2y10.h"
 #include <Arduino.h>
 
 #define DUST_LED 3
 #define DUST_PIN 2
 
+void initDustSensor() {
+    pinMode(DUST_LED, OUTPUT);
+    pinMode(DUST_PIN, INPUT);
+    digitalWrite(DUST_LED, HIGH);
+}
+
 int16_t readDust() {
-  digitalWrite(DUST_LED, LOW);
-  delayMicroseconds(280);
+    digitalWrite(DUST_LED, LOW);
+    delayMicroseconds(280);
 
-  int adc = analogRead(DUST_PIN);
+    int adc = analogRead(DUST_PIN);
 
-  delayMicroseconds(40);
-  digitalWrite(DUST_LED, HIGH);
+    delayMicroseconds(40);
+    digitalWrite(DUST_LED, HIGH);
 
-  float voltage = adc * 3.3 / 4095.0;
-  return (int16_t)(voltage * 1000); // scaled x10
+    float voltage = adc * 3.3 / 4095.0;
+    return (int16_t)(voltage * 10); // x10 scaling
 }
