@@ -1,9 +1,22 @@
+#include "general.h"
+#include "espnow.h"
+#include "sdcard.h"
+#include "serverconfig.h"
+
 void setup() {
-  // put your setup code here, to run once:
+  initGeneral();
+  initSD();
+  initESPNow();
 
+  waitForSlaves(5000);   // wait 5 sec for C3 data
+
+  saveBufferedDataToSD();
+
+  if (isTimeToUpload()) {
+    uploadBatch();
+  }
+
+  goDeepSleep(60);
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
-
-}
+void loop() {}
