@@ -1,6 +1,7 @@
 #include "serverconfig.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include "debugmode.h"
 
 #define WIFI_SSID "ssid"
 #define WIFI_PASS "pass"
