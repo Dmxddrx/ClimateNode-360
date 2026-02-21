@@ -3,7 +3,7 @@
 #define DUST_LED 3
 #define DUST_PIN 2
 
-float readDust() {
+int16_t readDust() {
   digitalWrite(DUST_LED, LOW);
   delayMicroseconds(280);
 
@@ -13,5 +13,5 @@ float readDust() {
   digitalWrite(DUST_LED, HIGH);
 
   float voltage = adc * 3.3 / 4095.0;
-  return voltage * 100.0;
+  return (int16_t)(voltage * 1000); // scaled x10
 }

@@ -2,8 +2,10 @@
 #include "am1001.h"
 #include "gp2y10.h"
 #include "espnow.h"
+#include "datatypes.h"
 
 void setup() {
+
   initGeneral();
   initSensors();
   initESPNow();
@@ -17,10 +19,9 @@ void setup() {
 
   sendToMaster(data);
 
-  delay(200);   // ensure transmission complete
+  delay(200);
 
   goDeepSleep(SAMPLE_INTERVAL_SEC);
 }
 
-void loop() {
-}
+void loop(){}

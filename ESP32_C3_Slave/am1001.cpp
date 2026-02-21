@@ -8,12 +8,18 @@ void initSensors() {
   pinMode(HUM_PIN, INPUT);
 }
 
-float readTemperature() {
+float readTemperatureRaw() {
   int adc = analogRead(TEMP_PIN);
-  return (adc * 3.3 / 4095.0) * 100.0;
+  float voltage = adc * 3.3 / 4095.0;
+  return voltage * 100.0;
 }
 
-float readHumidity() {
+int16_t readTemperature() {
+  return (int16_t)(readTemperatureRaw() * 100);
+}
+
+int16_t readHumidity() {
   int adc = analogRead(HUM_PIN);
-  return (adc * 3.3 / 4095.0) * 100.0;
+  float voltage = adc * 3.3 / 4095.0;
+  return (int16_t)(voltage * 10000);
 }
