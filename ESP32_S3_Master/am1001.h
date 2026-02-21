@@ -1,8 +1,10 @@
 #ifndef AM1001_H
 #define AM1001_H
 
+#include <stdint.h>
+
 void initSensors();
-float readTemperature();
-float readHumidity();
+int16_t readTemperature();
+int16_t readHumidity();
 
 #endif

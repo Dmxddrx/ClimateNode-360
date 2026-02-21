@@ -6,20 +6,30 @@
 #define CS_PIN 10
 
 void initSD() {
-  SD.begin(CS_PIN);
+    if(!SD.begin(CS_PIN)){
+        Serial.println("SD init failed!");
+    } else {
+        Serial.println("SD initialized");
+    }
 }
 
 void saveBufferedDataToSD() {
-  File file = SD.open("/log.csv", FILE_APPEND);
+    if(receivedCount == 0) return;
 
-  for (int i = 0; i < receivedCount; i++) {
-    file.printf("%d,%.2f,%.2f,%.2f\n",
-      receivedData[i].nodeId,
-      receivedData[i].temperature,
-      receivedData[i].humidity,
-      receivedData[i].dust);
-  }
+    File file = SD.open("/log.csv", FILE_APPEND);
+    if(!file){
+        Serial.println("Failed to open file!");
+        return;
+    }
 
-  file.close();
-  receivedCount = 0;
+    for (int i = 0; i < receivedCount; i++) {
+        file.printf("%d,%.2f,%.2f,%.1f\n",
+            receivedData[i].nodeId,
+            receivedData[i].temperature / 100.0,
+            receivedData[i].humidity / 100.0,
+            receivedData[i].dust / 10.0);
+    }
+    file.close();
+    Serial.printf("%d records saved to SD\n", receivedCount);
+    receivedCount = 0;
 }

@@ -8,33 +8,34 @@
 
 void setup() {
 
-  initGeneral();
-  initSensors();
-  initSD();
-  initESPNow();
+    initGeneral();
+    initSensors();
+    initDustSensor();
+    initSD();
+    initESPNow();
 
-  // --------- 1. Read S3 Local Sensors ----------
-  SensorData localData;
-  localData.nodeId = 0;   // Master ID = 0
-  localData.temperature = readTemperature();
-  localData.humidity = readHumidity();
-  localData.dust = readDust();
+    // 1. Read local sensors
+    SensorData localData;
+    localData.nodeId = 0; // Master node
+    localData.temperature = readTemperature();
+    localData.humidity = readHumidity();
+    localData.dust = readDust();
 
-  storeLocalReading(localData);
+    storeLocalReading(localData);
 
-  // --------- 2. Wait for C3 Slaves ----------
-  waitForSlaves(5000);
+    // 2. Wait for slaves
+    waitForSlaves(8000); // 8 sec safe window
 
-  // --------- 3. Save Everything ----------
-  saveBufferedDataToSD();
+    // 3. Save all data to SD
+    saveBufferedDataToSD();
 
-  // --------- 4. Upload every 15 cycles ----------
-  if (isTimeToUpload()) {
-    uploadBatch();
-  }
+    // 4. Upload batch if needed
+    if(isTimeToUpload()){
+        uploadBatch();
+    }
 
-  // --------- 5. Sleep ----------
-  goDeepSleep(60);
+    // 5. Go to deep sleep
+    goDeepSleep(SAMPLE_INTERVAL_SEC);
 }
 
-void loop() {}
+void loop(){}

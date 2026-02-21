@@ -1,25 +1,9 @@
-#include "sdcard.h"
-#include <SPI.h>
-#include <SD.h>
-#include "espnow.h"
+#ifndef SDCARD_H
+#define SDCARD_H
 
-#define CS_PIN 10
+#include "datatypes.h"
 
-void initSD() {
-  SD.begin(CS_PIN);
-}
+void initSD();
+void saveBufferedDataToSD();
 
-void saveBufferedDataToSD() {
-  File file = SD.open("/log.csv", FILE_APPEND);
-
-  for (int i = 0; i < receivedCount; i++) {
-    file.printf("%d,%.2f,%.2f,%.2f\n",
-      receivedData[i].nodeId,
-      receivedData[i].temperature,
-      receivedData[i].humidity,
-      receivedData[i].dust);
-  }
-
-  file.close();
-  receivedCount = 0;
-}
+#endif
