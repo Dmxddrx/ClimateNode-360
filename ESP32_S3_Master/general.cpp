@@ -2,7 +2,6 @@
 #include "am1001.h"
 #include "gp2y10.h"
 #include "espnow.h"
-#include "sdcard.h"
 #include "serverconfig.h"
 #include "debugmode.h"
 #include "datatypes.h"
@@ -27,19 +26,6 @@ void initGeneral() {
     DEBUG_MODE = true;   // Disable by setting false
 
     DEBUG_PRINTLN("===== MASTER BOOT =====");
-
-    initSD();
-
-    // Ensure queue file exists
-    if (!SD.exists(QUEUE_FILE)) {
-        File f = SD.open(QUEUE_FILE, FILE_WRITE);
-        if (f) {
-            f.close();
-            DEBUG_PRINTLN("Queue file created.");
-        } else {
-            DEBUG_PRINTLN("Failed to create queue file!");
-        }
-    }
 }
 
 //------------------------------------------------------------
@@ -64,7 +50,6 @@ void waitForSlavesSmart(uint32_t timeoutMs) {
     uint8_t lastCount = receivedCount;
 
     while (millis() - start < timeoutMs) {
-        // If new data arrived reset timer
         if (receivedCount != lastCount) {
             lastCount = receivedCount;
             start = millis();  // extend window
@@ -82,9 +67,7 @@ void generalRun() {
 
     DEBUG_PRINTLN("Starting sampling cycle...");
 
-    // -------------------------------------------------
     // 1. Read Master Local Sensors
-    // -------------------------------------------------
     SensorData localData;
     localData.nodeId = 0;
     localData.temperature = readTemperature();
@@ -98,12 +81,9 @@ void generalRun() {
     DEBUG_PRINTF("Master Data -> Node: %d, Temp: %.2f, Hum: %.2f, Dust: %.2f\n",
                  localData.nodeId, localData.temperature / 100.0, localData.humidity / 100.0, localData.dust / 10.0);
 
-    // -------------------------------------------------
     // 2. Wait for Slave Nodes
-    // -------------------------------------------------
     waitForSlavesSmart(SLAVE_TIMEOUT_MS);
 
-    // Debug print: all received slave data
     for (uint8_t i = 0; i < receivedCount; i++) {
         DEBUG_PRINTF("Slave Data -> Node: %d, Temp: %.2f, Hum: %.2f, Dust: %.2f\n",
                      receivedData[i].nodeId,
@@ -112,9 +92,7 @@ void generalRun() {
                      receivedData[i].dust / 10.0);
     }
 
-    // -------------------------------------------------
-    // 3. Connect WiFi for Time + Upload
-    // -------------------------------------------------
+    // 3. Connect WiFi and sync time
     DEBUG_PRINTLN("Checking network for time sync...");
 
     if (isNetworkAvailable()) {
@@ -122,54 +100,37 @@ void generalRun() {
         delay(1000);
 
         uint32_t now = getTimestamp();
-
         if (now != 0) {
             DEBUG_PRINTF("Time synced: %lu\n", now);
 
-            // Add timestamp to all collected data
+            localData.timestamp = now;
             for (uint8_t i = 0; i < receivedCount; i++) {
                 receivedData[i].timestamp = now;
             }
-            localData.timestamp = now;
         }
 
-        // Add data to queue
-        addToServerQueue(localData);
+        // Build array of all data
+        SensorData allData[receivedCount + 1];
+        allData[0] = localData;
         for (uint8_t i = 0; i < receivedCount; i++) {
-            addToServerQueue(receivedData[i]);
+            allData[i + 1] = receivedData[i];
         }
 
-        // Upload queued data and print status
-        if (uploadQueuedData()) {
-            DEBUG_PRINTLN("Upload successful. Queue cleared.");
+        // Upload directly
+        if (uploadQueuedData(allData, receivedCount + 1)) {
+            DEBUG_PRINTLN("Upload successful.");
         } else {
-            DEBUG_PRINTLN("Upload failed. Data remains in queue.");
+            DEBUG_PRINTLN("Upload failed.");
         }
 
     } else {
-        DEBUG_PRINTLN("Network unavailable. Queueing locally.");
-
-        // Timestamp = 0 (unknown time)
-        localData.timestamp = 0;
-        addToServerQueue(localData);
-        for (uint8_t i = 0; i < receivedCount; i++) {
-            receivedData[i].timestamp = 0;
-            addToServerQueue(receivedData[i]);
-        }
+        DEBUG_PRINTLN("Network unavailable. Data cannot be uploaded.");
     }
-
-    // -------------------------------------------------
-    // 4. Save ALL data to SD (with timestamp)
-    // -------------------------------------------------
-    saveBufferedDataToSD(receivedData, receivedCount);
-    DEBUG_PRINTLN("All data saved to SD.");
 
     // Clear receive buffer
     receivedCount = 0;
 
-    // -------------------------------------------------
-    // 5. Deep Sleep
-    // -------------------------------------------------
+    // 4. Deep Sleep
     DEBUG_PRINTF("Sleeping for %d seconds...\n", SAMPLE_INTERVAL_SEC);
     esp_sleep_enable_timer_wakeup((uint64_t)SAMPLE_INTERVAL_SEC * 1000000ULL);
     esp_deep_sleep_start();
