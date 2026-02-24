@@ -4,10 +4,13 @@
 #include <Arduino.h>
 #include "datatypes.h"
 
-#define NODE_ID 1            // Change per node
-#define SAMPLE_INTERVAL_SEC 60  // Sleep interval
+// Node settings
+#define NODE_ID 1
+#define SAMPLE_INTERVAL_SEC 60  // deep sleep interval
 
+// Functions
 void initGeneral();
+void readAndSendData();
 void goDeepSleep(uint32_t seconds);
 
 #endif

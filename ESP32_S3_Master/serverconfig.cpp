@@ -43,7 +43,7 @@ bool isNetworkAvailable() {
 
 // ----- Upload -----
 
-bbool uploadQueuedData() {
+bool uploadQueuedData() {
 
     if (!SD.exists(QUEUE_FILE)) return true;
 
