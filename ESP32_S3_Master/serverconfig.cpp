@@ -7,15 +7,26 @@
 #define WIFI_SSID "ssid"
 #define WIFI_PASS "pass"
 #define SERVER_URL "http://server/api/upload"
+#define QUEUE_FILE "/queue.csv"
 
 
 
 // ----- Queue Management -----
 
 void addToServerQueue(SensorData &data) {
-    if (queueCount < MAX_QUEUE) {
-        serverQueue[queueCount++] = data;
-    }
+
+    File file = SD.open(QUEUE_FILE, FILE_APPEND);
+    if (!file) return;
+
+    file.printf("%lu,%d,%d,%d,%d\n",
+        data.timestamp,
+        data.nodeId,
+        data.temperature,
+        data.humidity,
+        data.dust
+    );
+
+    file.close();
 }
 
 
@@ -32,29 +43,45 @@ bool isNetworkAvailable() {
 
 // ----- Upload -----
 
-bool uploadQueuedData() {
-    if (queueCount == 0) return true; // Nothing to send
+bbool uploadQueuedData() {
 
-    if (!isNetworkAvailable()) return false; // Network not available
+    if (!SD.exists(QUEUE_FILE)) return true;
+
+    if (!isNetworkAvailable()) return false;
+
+    File file = SD.open(QUEUE_FILE, FILE_READ);
+    if (!file) return false;
 
     HTTPClient http;
     http.begin(SERVER_URL);
     http.addHeader("Content-Type", "application/json");
 
-    // Build JSON payload
     String payload = "[";
-    for (uint8_t i = 0; i < queueCount; i++) {
+    bool first = true;
+
+    while (file.available()) {
+
+        String line = file.readStringUntil('\n');
+        if (line.length() < 5) continue;
+
+        uint32_t timestamp;
+        int nodeId, temp, hum, dust;
+
+        sscanf(line.c_str(), "%lu,%d,%d,%d,%d",
+               &timestamp, &nodeId, &temp, &hum, &dust);
+
+        if (!first) payload += ",";
+        first = false;
+
         char buf[128];
         snprintf(buf, sizeof(buf),
-    "{\"timestamp\":%lu,\"nodeId\":%d,\"temperature\":%d,\"humidity\":%d,\"dust\":%d}",
-        serverQueue[i].timestamp,
-        serverQueue[i].nodeId,
-        serverQueue[i].temperature,
-        serverQueue[i].humidity,
-        serverQueue[i].dust);
+            "{\"timestamp\":%lu,\"nodeId\":%d,\"temperature\":%d,\"humidity\":%d,\"dust\":%d}",
+            timestamp, nodeId, temp, hum, dust);
+
         payload += buf;
-        if (i < queueCount - 1) payload += ",";
     }
+
+    file.close();
     payload += "]";
 
     int httpCode = http.POST(payload);
@@ -63,11 +90,9 @@ bool uploadQueuedData() {
     WiFi.disconnect(true);
 
     if (httpCode > 0 && httpCode < 300) {
-        // Success, clear queue
-        clearQueue();
+        SD.remove(QUEUE_FILE);  // Clear queue file only if success
         return true;
     }
 
-    // Fail, keep queue for next attempt
     return false;
 }
