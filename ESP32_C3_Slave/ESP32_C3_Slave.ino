@@ -12,7 +12,7 @@ void setup() {
     readAndSendData();    // Read sensors + send to master
     delay(200);           // Ensure ESP-NOW transmission completes
 
-    goDeepSleep(SAMPLE_INTERVAL_SEC);
+    //goDeepSleep(SAMPLE_INTERVAL_SEC);
 }
 
 void loop() {

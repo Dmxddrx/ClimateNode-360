@@ -28,3 +28,21 @@ void saveBufferedDataToSD(SensorData *data, uint8_t count) {
 
     file.close();
 }
+
+bool ensureQueueFile() {
+
+    if (!SD.exists("/queue.csv")) {
+        Serial.println("Queue file not found. Creating...");
+
+        File file = SD.open("/queue.csv", FILE_WRITE);
+        if (!file) {
+            Serial.println("Failed to create queue file!");
+            return false;
+        }
+
+        file.close();
+        Serial.println("Queue file created.");
+    }
+
+    return true;
+}

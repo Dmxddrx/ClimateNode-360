@@ -12,7 +12,7 @@
 
 // NTP Settings
 #define NTP_SERVER      "pool.ntp.org"
-#define GMT_OFFSET_SEC  19800     // Sri Lanka = UTC+5:30 (5.5*3600)
+#define GMT_OFFSET_SEC  19800     // Sri Lanka = UTC+5:30
 #define DAYLIGHT_OFFSET 0
 
 // Slave timeout window
@@ -23,9 +23,23 @@
 //------------------------------------------------------------
 void initGeneral() {
     Serial.begin(115200);
+    delay(100);
     DEBUG_MODE = true;   // Disable by setting false
 
     DEBUG_PRINTLN("===== MASTER BOOT =====");
+
+    initSD();
+
+    // Ensure queue file exists
+    if (!SD.exists(QUEUE_FILE)) {
+        File f = SD.open(QUEUE_FILE, FILE_WRITE);
+        if (f) {
+            f.close();
+            DEBUG_PRINTLN("Queue file created.");
+        } else {
+            DEBUG_PRINTLN("Failed to create queue file!");
+        }
+    }
 }
 
 //------------------------------------------------------------
@@ -50,13 +64,11 @@ void waitForSlavesSmart(uint32_t timeoutMs) {
     uint8_t lastCount = receivedCount;
 
     while (millis() - start < timeoutMs) {
-
         // If new data arrived reset timer
         if (receivedCount != lastCount) {
             lastCount = receivedCount;
             start = millis();  // extend window
         }
-
         delay(50);
     }
 
@@ -83,10 +95,8 @@ void generalRun() {
     localData.timestamp = 0; // will assign after NTP
     storeLocalReading(localData);
 
-    //DEBUG_PRINTLN("Master local data captured.");
-    // Debug print: master local data
     DEBUG_PRINTF("Master Data -> Node: %d, Temp: %.2f, Hum: %.2f, Dust: %.2f\n",
-                 localData.nodeId, localData.temperature, localData.humidity, localData.dust);
+                 localData.nodeId, localData.temperature / 100.0, localData.humidity / 100.0, localData.dust / 10.0);
 
     // -------------------------------------------------
     // 2. Wait for Slave Nodes
@@ -97,9 +107,9 @@ void generalRun() {
     for (uint8_t i = 0; i < receivedCount; i++) {
         DEBUG_PRINTF("Slave Data -> Node: %d, Temp: %.2f, Hum: %.2f, Dust: %.2f\n",
                      receivedData[i].nodeId,
-                     receivedData[i].temperature,
-                     receivedData[i].humidity,
-                     receivedData[i].dust);
+                     receivedData[i].temperature / 100.0,
+                     receivedData[i].humidity / 100.0,
+                     receivedData[i].dust / 10.0);
     }
 
     // -------------------------------------------------
@@ -108,7 +118,6 @@ void generalRun() {
     DEBUG_PRINTLN("Checking network for time sync...");
 
     if (isNetworkAvailable()) {
-
         configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET, NTP_SERVER);
         delay(1000);
 
@@ -121,32 +130,39 @@ void generalRun() {
             for (uint8_t i = 0; i < receivedCount; i++) {
                 receivedData[i].timestamp = now;
             }
+            localData.timestamp = now;
         }
 
-        // Add to upload queue
+        // Add data to queue
+        addToServerQueue(localData);
         for (uint8_t i = 0; i < receivedCount; i++) {
             addToServerQueue(receivedData[i]);
         }
 
-        uploadQueuedData();
-    }
-    else {
+        // Upload queued data and print status
+        if (uploadQueuedData()) {
+            DEBUG_PRINTLN("Upload successful. Queue cleared.");
+        } else {
+            DEBUG_PRINTLN("Upload failed. Data remains in queue.");
+        }
+
+    } else {
         DEBUG_PRINTLN("Network unavailable. Queueing locally.");
 
         // Timestamp = 0 (unknown time)
+        localData.timestamp = 0;
+        addToServerQueue(localData);
         for (uint8_t i = 0; i < receivedCount; i++) {
             receivedData[i].timestamp = 0;
             addToServerQueue(receivedData[i]);
         }
-        addToServerQueue(localData);
     }
 
     // -------------------------------------------------
     // 4. Save ALL data to SD (with timestamp)
     // -------------------------------------------------
     saveBufferedDataToSD(receivedData, receivedCount);
-
-    DEBUG_PRINTLN("Data saved to SD.");
+    DEBUG_PRINTLN("All data saved to SD.");
 
     // Clear receive buffer
     receivedCount = 0;
@@ -155,7 +171,6 @@ void generalRun() {
     // 5. Deep Sleep
     // -------------------------------------------------
     DEBUG_PRINTF("Sleeping for %d seconds...\n", SAMPLE_INTERVAL_SEC);
-
     esp_sleep_enable_timer_wakeup((uint64_t)SAMPLE_INTERVAL_SEC * 1000000ULL);
     esp_deep_sleep_start();
 }

@@ -1,24 +1,26 @@
 #include "serverconfig.h"
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <SD.h>
+#include "sdcard.h"
 
-// Wi-Fi credentials
-#define WIFI_SSID "ssid"
-#define WIFI_PASS "pass"
-#define SERVER_URL "http://server/api/upload"
-#define QUEUE_FILE "/queue.csv"
-
-
-
-// ----- Queue Management -----
-
+// ------------------------------------------------------------
+// Add Data To SD Queue
+// ------------------------------------------------------------
 void addToServerQueue(SensorData &data) {
 
-    File file = SD.open(QUEUE_FILE, FILE_APPEND);
-    if (!file) return;
+    // Ensure queue file exists
+    if (!SD.exists(QUEUE_FILE)) {
+        File f = SD.open(QUEUE_FILE, FILE_WRITE);
+        if (f) f.close();
+        else return; // fail silently if cannot create
+    }
 
-    file.printf("%lu,%d,%d,%d,%d\n",
+    File file = SD.open(QUEUE_FILE, FILE_APPEND);
+    if (!file) return; // fail silently if cannot open
+
+    file.printf("%lu,%d,%hd,%hd,%hd\n",
         data.timestamp,
         data.nodeId,
         data.temperature,
@@ -29,35 +31,48 @@ void addToServerQueue(SensorData &data) {
     file.close();
 }
 
-
-// ----- Network -----
-
+// ------------------------------------------------------------
+// Network Check
+// ------------------------------------------------------------
 bool isNetworkAvailable() {
+
     WiFi.begin(WIFI_SSID, WIFI_PASS);
+
     uint32_t start = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - start < 5000) {
-        delay(50); // Wait max 5 seconds
+    while (WiFi.status() != WL_CONNECTED && millis() - start < 8000) {
+        delay(100);
     }
+
     return WiFi.status() == WL_CONNECTED;
 }
 
-// ----- Upload -----
-
+// ------------------------------------------------------------
+// Upload Queued Data To InfluxDB Cloud
+// ------------------------------------------------------------
 bool uploadQueuedData() {
 
-    if (!SD.exists(QUEUE_FILE)) return true;
+    if (!SD.exists(QUEUE_FILE)) {
+        return true; // nothing to upload
+    }
 
-    if (!isNetworkAvailable()) return false;
+    if (!isNetworkAvailable()) {
+        return false;
+    }
 
     File file = SD.open(QUEUE_FILE, FILE_READ);
-    if (!file) return false;
+    if (!file) {
+        return false;
+    }
+
+    WiFiClientSecure client;
+    client.setInsecure();  // For production use proper certificate
 
     HTTPClient http;
-    http.begin(SERVER_URL);
-    http.addHeader("Content-Type", "application/json");
+    http.begin(client, INFLUXDB_URL);
+    http.addHeader("Authorization", String("Token ") + INFLUXDB_TOKEN);
+    http.addHeader("Content-Type", "text/plain; charset=utf-8");
 
-    String payload = "[";
-    bool first = true;
+    String payload = "";
 
     while (file.available()) {
 
@@ -65,32 +80,43 @@ bool uploadQueuedData() {
         if (line.length() < 5) continue;
 
         uint32_t timestamp;
-        int nodeId, temp, hum, dust;
+        int nodeId;
+        int16_t temp, hum, dust;
 
-        sscanf(line.c_str(), "%lu,%d,%d,%d,%d",
+        sscanf(line.c_str(), "%lu,%d,%hd,%hd,%hd",
                &timestamp, &nodeId, &temp, &hum, &dust);
 
-        if (!first) payload += ",";
-        first = false;
+        if (timestamp == 0) continue;
 
-        char buf[128];
-        snprintf(buf, sizeof(buf),
-            "{\"timestamp\":%lu,\"nodeId\":%d,\"temperature\":%d,\"humidity\":%d,\"dust\":%d}",
-            timestamp, nodeId, temp, hum, dust);
+        // Convert stored integers back to real float values
+        float tempF = temp / 100.0;
+        float humF  = hum  / 100.0;
+        float dustF = dust / 10.0;
 
-        payload += buf;
+        // InfluxDB Line Protocol
+        payload += "climate_data";
+        payload += ",nodeId=" + String(nodeId);
+        payload += " temperature=" + String(tempF, 2);
+        payload += ",humidity=" + String(humF, 2);
+        payload += ",dust=" + String(dustF, 2);
+        payload += " ";
+        payload += String(timestamp);
+        payload += "\n";
     }
 
     file.close();
-    payload += "]";
+
+    if (payload.length() == 0) {
+        return false;
+    }
 
     int httpCode = http.POST(payload);
 
     http.end();
     WiFi.disconnect(true);
 
-    if (httpCode > 0 && httpCode < 300) {
-        SD.remove(QUEUE_FILE);  // Clear queue file only if success
+    if (httpCode >= 200 && httpCode < 300) {
+        SD.remove(QUEUE_FILE);
         return true;
     }
 

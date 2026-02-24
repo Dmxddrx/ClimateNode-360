@@ -7,6 +7,7 @@
 
 void initGeneral() {
     Serial.begin(115200);
+    delay(200);
     DEBUG_MODE = true;
 
     DEBUG_PRINTLN("Node Booting...");
@@ -40,6 +41,7 @@ void readAndSendData() {
 
 void goDeepSleep(uint32_t seconds) {
     DEBUG_PRINTF("Going to deep sleep for %d seconds...\n", seconds);
-    esp_sleep_enable_timer_wakeup((uint64_t)seconds * 1000000ULL);
-    esp_deep_sleep_start();
+    //Serial.flush();  // wait until all prints are transmitted
+    //esp_sleep_enable_timer_wakeup((uint64_t)seconds * 1000000ULL);
+    //esp_deep_sleep_start();
 }

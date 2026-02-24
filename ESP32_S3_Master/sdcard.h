@@ -9,4 +9,6 @@ void initSD();
 // Save an array of SensorData to SD card
 void saveBufferedDataToSD(SensorData *data, uint8_t count);
 
+bool ensureQueueFile();
+
 #endif
