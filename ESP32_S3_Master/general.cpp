@@ -75,23 +75,32 @@ void generalRun() {
     // -------------------------------------------------
     SensorData localData;
     localData.nodeId = 0;
-
     localData.temperature = readTemperature();
     delay(50);
     localData.humidity = readHumidity();
     delay(50);
     localData.dust = readDust();
-
     localData.timestamp = 0; // will assign after NTP
-
     storeLocalReading(localData);
 
-    DEBUG_PRINTLN("Master local data captured.");
+    //DEBUG_PRINTLN("Master local data captured.");
+    // Debug print: master local data
+    DEBUG_PRINTF("Master Data -> Node: %d, Temp: %.2f, Hum: %.2f, Dust: %.2f\n",
+                 localData.nodeId, localData.temperature, localData.humidity, localData.dust);
 
     // -------------------------------------------------
     // 2. Wait for Slave Nodes
     // -------------------------------------------------
     waitForSlavesSmart(SLAVE_TIMEOUT_MS);
+
+    // Debug print: all received slave data
+    for (uint8_t i = 0; i < receivedCount; i++) {
+        DEBUG_PRINTF("Slave Data -> Node: %d, Temp: %.2f, Hum: %.2f, Dust: %.2f\n",
+                     receivedData[i].nodeId,
+                     receivedData[i].temperature,
+                     receivedData[i].humidity,
+                     receivedData[i].dust);
+    }
 
     // -------------------------------------------------
     // 3. Connect WiFi for Time + Upload
@@ -129,6 +138,7 @@ void generalRun() {
             receivedData[i].timestamp = 0;
             addToServerQueue(receivedData[i]);
         }
+        addToServerQueue(localData);
     }
 
     // -------------------------------------------------

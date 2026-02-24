@@ -5,8 +5,8 @@
 #include "datatypes.h"
 
 // Node settings
-#define NODE_ID 1
-#define SAMPLE_INTERVAL_SEC 60  // deep sleep interval
+#define NODE_ID 2
+#define SAMPLE_INTERVAL_SEC 5  // deep sleep interval
 
 // Functions
 void initGeneral();

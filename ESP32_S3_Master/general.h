@@ -5,7 +5,7 @@
 #include "datatypes.h"
 
 // Interval for master deep sleep
-#define SAMPLE_INTERVAL_SEC 60
+#define SAMPLE_INTERVAL_SEC 5
 
 // Initialize serial, debug, etc.
 void initGeneral();
