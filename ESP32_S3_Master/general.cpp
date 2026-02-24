@@ -26,21 +26,27 @@ void initGeneral() {
     DEBUG_MODE = true;   // Enable debug prints
 
     DEBUG_PRINTLN("===== MASTER BOOT =====");
+
+    // Start NTP background sync immediately
+    configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET, NTP_SERVER);
 }
 
 //------------------------------------------------------------
-// Wait until NTP time is valid
+// Wait until NTP time is valid (and not 1970)
 //------------------------------------------------------------
 uint32_t getValidTimestamp(uint32_t timeoutMs = 10000) {
     uint32_t start = millis();
     struct tm timeinfo;
     while (millis() - start < timeoutMs) {
         if (getLocalTime(&timeinfo)) {
-            return mktime(&timeinfo);
+            // Check if year is at least 2020 (tm_year is years since 1900)
+            if (timeinfo.tm_year >= 120) { 
+                return mktime(&timeinfo);
+            }
         }
         delay(200);
     }
-    DEBUG_PRINTLN("Failed to obtain valid NTP time");
+    DEBUG_PRINTLN("Failed to obtain valid NTP time (still in 1970)");
     return 0;
 }
 
@@ -98,20 +104,17 @@ void generalRun() {
                      receivedData[i].dust / 10.0);
     }
 
-    // 3. Connect WiFi and sync time
+    // 3. Ensure network is available
     DEBUG_PRINTLN("Checking network for time sync...");
-
     if (!isNetworkAvailable()) {
         DEBUG_PRINTLN("Network unavailable. Upload aborted.");
         return; // exit safely
     }
 
-    configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET, NTP_SERVER);
-
-    // Wait until valid timestamp is obtained
+    // 4. Ensure NTP time is valid before assigning timestamp
     uint32_t now = getValidTimestamp(10000); // wait up to 10s
     if (now == 0) {
-        DEBUG_PRINTLN("Time sync failed. Upload aborted.");
+        DEBUG_PRINTLN("Time sync failed. Upload aborted to prevent 1970 data.");
         return;
     }
     DEBUG_PRINTF("Time synced: %lu\n", now);
@@ -122,23 +125,34 @@ void generalRun() {
         receivedData[i].timestamp = now;
     }
 
-    // 4. Build array of all data
+    // 5. Build array of all data
     SensorData allData[receivedCount + 1];
     allData[0] = localData;
     for (uint8_t i = 0; i < receivedCount; i++) {
         allData[i + 1] = receivedData[i];
     }
 
-    // 5. Upload using InfluxDBClient
-    bool uploadSuccess = uploadQueuedData(allData, receivedCount + 1);
+    // 6. Upload with retry loop
+    int retryCount = 0;
+    const int maxRetries = 3;
+    bool success = false;
 
-    if (uploadSuccess) {
-        DEBUG_PRINTLN("Upload successful.");
-    } else {
-        DEBUG_PRINTLN("Upload failed. Data queued locally.");
-        // TODO: implement SD/Flash queue here if needed
+    while (retryCount < maxRetries && !success) {
+        success = uploadQueuedData(allData, receivedCount + 1);
+        if (!success) {
+            DEBUG_PRINTF("Upload failed. Retrying (%d/%d)...\n",
+                         retryCount + 1, maxRetries);
+            retryCount++;
+            delay(2000); // wait 2s before retry
+        }
     }
 
-    // 6. Clear receive buffer
+    if (success) {
+        DEBUG_PRINTLN("Upload successful.");
+    } else {
+        DEBUG_PRINTLN("Upload failed after retries. Data queued locally.");
+    }
+
+    // 7. Clear receive buffer
     receivedCount = 0;
 }

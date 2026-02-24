@@ -42,7 +42,12 @@ bool uploadQueuedData(SensorData *dataArray, uint8_t count) {
         sensor.addField("temperature", dataArray[i].temperature / 100.0);
         sensor.addField("humidity", dataArray[i].humidity / 100.0);
         sensor.addField("dust", dataArray[i].dust / 10.0);
-        sensor.setTime(dataArray[i].timestamp);
+        
+        // --- MATHEMATICAL PART ---
+        // Convert seconds to nanoseconds (InfluxDB default) using 64-bit math
+        uint64_t timestampNS = (uint64_t)dataArray[i].timestamp * 1000000000ULL;
+        sensor.setTime(timestampNS);
+        // -------------------------
 
         if (!client.writePoint(sensor)) {
             DEBUG_PRINTF("InfluxDB write failed: %s\n", client.getLastErrorMessage().c_str());
