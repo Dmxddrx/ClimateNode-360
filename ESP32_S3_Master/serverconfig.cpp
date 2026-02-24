@@ -1,18 +1,14 @@
 #include "serverconfig.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <SD.h>
 
 // Wi-Fi credentials
 #define WIFI_SSID "ssid"
 #define WIFI_PASS "pass"
 #define SERVER_URL "http://server/api/upload"
 
-// Maximum queue size
-#define MAX_QUEUE 100
 
-// Simple in-memory queue for batch upload
-static SensorData serverQueue[MAX_QUEUE];
-static uint8_t queueCount = 0;
 
 // ----- Queue Management -----
 
@@ -22,19 +18,6 @@ void addToServerQueue(SensorData &data) {
     }
 }
 
-size_t getQueueSize() {
-    return queueCount;
-}
-
-SensorData getQueuedData(uint8_t index) {
-    if (index < queueCount) return serverQueue[index];
-    SensorData empty = {0,0,0,0};
-    return empty;
-}
-
-void clearQueue() {
-    queueCount = 0;
-}
 
 // ----- Network -----
 
@@ -63,11 +46,12 @@ bool uploadQueuedData() {
     for (uint8_t i = 0; i < queueCount; i++) {
         char buf[128];
         snprintf(buf, sizeof(buf),
-            "{\"nodeId\":%d,\"temperature\":%d,\"humidity\":%d,\"dust\":%d}",
-            serverQueue[i].nodeId,
-            serverQueue[i].temperature,
-            serverQueue[i].humidity,
-            serverQueue[i].dust);
+    "{\"timestamp\":%lu,\"nodeId\":%d,\"temperature\":%d,\"humidity\":%d,\"dust\":%d}",
+        serverQueue[i].timestamp,
+        serverQueue[i].nodeId,
+        serverQueue[i].temperature,
+        serverQueue[i].humidity,
+        serverQueue[i].dust);
         payload += buf;
         if (i < queueCount - 1) payload += ",";
     }

@@ -14,12 +14,11 @@ void saveBufferedDataToSD(SensorData *data, uint8_t count) {
     if (count == 0 || data == nullptr) return;
 
     File file = SD.open("/log.csv", FILE_APPEND);
-    if (!file) return;   // Fail silently
+    if (!file) return;
 
     for (uint8_t i = 0; i < count; i++) {
-        // Format: nodeId,temperature,humidity,dust
-        // Temperature/humidity scaled x100, dust scaled x10
-        file.printf("%d,%d,%d,%d\n",
+        file.printf("%lu,%d,%d,%d,%d\n",
+            data[i].timestamp,
             data[i].nodeId,
             data[i].temperature,
             data[i].humidity,

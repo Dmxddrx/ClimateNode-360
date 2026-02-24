@@ -9,6 +9,7 @@ struct __attribute__((packed)) SensorData {
     int16_t temperature;  // x100
     int16_t humidity;     // x100
     int16_t dust;         // x10
+    uint32_t timestamp;    // UNIX time
 };
 
 #endif
