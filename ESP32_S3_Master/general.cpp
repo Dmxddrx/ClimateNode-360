@@ -5,9 +5,9 @@
 #include "serverconfig.h"
 #include "debugmode.h"
 #include "datatypes.h"
-#include <esp_sleep.h>
 #include <WiFi.h>
 #include <time.h>
+#include <InfluxDbClient.h>
 
 // NTP Settings
 #define NTP_SERVER      "pool.ntp.org"
@@ -23,21 +23,25 @@
 void initGeneral() {
     Serial.begin(115200);
     delay(100);
-    DEBUG_MODE = true;   // Disable by setting false
+    DEBUG_MODE = true;   // Enable debug prints
 
     DEBUG_PRINTLN("===== MASTER BOOT =====");
 }
 
 //------------------------------------------------------------
-// Get current timestamp from NTP
+// Wait until NTP time is valid
 //------------------------------------------------------------
-uint32_t getTimestamp() {
+uint32_t getValidTimestamp(uint32_t timeoutMs = 10000) {
+    uint32_t start = millis();
     struct tm timeinfo;
-    if (!getLocalTime(&timeinfo)) {
-        DEBUG_PRINTLN("Failed to obtain time");
-        return 0;
+    while (millis() - start < timeoutMs) {
+        if (getLocalTime(&timeinfo)) {
+            return mktime(&timeinfo);
+        }
+        delay(200);
     }
-    return mktime(&timeinfo);
+    DEBUG_PRINTLN("Failed to obtain valid NTP time");
+    return 0;
 }
 
 //------------------------------------------------------------
@@ -64,7 +68,6 @@ void waitForSlavesSmart(uint32_t timeoutMs) {
 // Main logic
 //------------------------------------------------------------
 void generalRun() {
-
     DEBUG_PRINTLN("Starting sampling cycle...");
 
     // 1. Read Master Local Sensors
@@ -79,7 +82,10 @@ void generalRun() {
     storeLocalReading(localData);
 
     DEBUG_PRINTF("Master Data -> Node: %d, Temp: %.2f, Hum: %.2f, Dust: %.2f\n",
-                 localData.nodeId, localData.temperature / 100.0, localData.humidity / 100.0, localData.dust / 10.0);
+                 localData.nodeId,
+                 localData.temperature / 100.0,
+                 localData.humidity / 100.0,
+                 localData.dust / 10.0);
 
     // 2. Wait for Slave Nodes
     waitForSlavesSmart(SLAVE_TIMEOUT_MS);
@@ -95,43 +101,44 @@ void generalRun() {
     // 3. Connect WiFi and sync time
     DEBUG_PRINTLN("Checking network for time sync...");
 
-    if (isNetworkAvailable()) {
-        configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET, NTP_SERVER);
-        delay(1000);
-
-        uint32_t now = getTimestamp();
-        if (now != 0) {
-            DEBUG_PRINTF("Time synced: %lu\n", now);
-
-            localData.timestamp = now;
-            for (uint8_t i = 0; i < receivedCount; i++) {
-                receivedData[i].timestamp = now;
-            }
-        }
-
-        // Build array of all data
-        SensorData allData[receivedCount + 1];
-        allData[0] = localData;
-        for (uint8_t i = 0; i < receivedCount; i++) {
-            allData[i + 1] = receivedData[i];
-        }
-
-        // Upload directly
-        if (uploadQueuedData(allData, receivedCount + 1)) {
-            DEBUG_PRINTLN("Upload successful.");
-        } else {
-            DEBUG_PRINTLN("Upload failed.");
-        }
-
-    } else {
-        DEBUG_PRINTLN("Network unavailable. Data cannot be uploaded.");
+    if (!isNetworkAvailable()) {
+        DEBUG_PRINTLN("Network unavailable. Upload aborted.");
+        return; // exit safely
     }
 
-    // Clear receive buffer
-    receivedCount = 0;
+    configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET, NTP_SERVER);
 
-    // 4. Deep Sleep
-    DEBUG_PRINTF("Sleeping for %d seconds...\n", SAMPLE_INTERVAL_SEC);
-    esp_sleep_enable_timer_wakeup((uint64_t)SAMPLE_INTERVAL_SEC * 1000000ULL);
-    esp_deep_sleep_start();
+    // Wait until valid timestamp is obtained
+    uint32_t now = getValidTimestamp(10000); // wait up to 10s
+    if (now == 0) {
+        DEBUG_PRINTLN("Time sync failed. Upload aborted.");
+        return;
+    }
+    DEBUG_PRINTF("Time synced: %lu\n", now);
+
+    // Assign timestamp to all data
+    localData.timestamp = now;
+    for (uint8_t i = 0; i < receivedCount; i++) {
+        receivedData[i].timestamp = now;
+    }
+
+    // 4. Build array of all data
+    SensorData allData[receivedCount + 1];
+    allData[0] = localData;
+    for (uint8_t i = 0; i < receivedCount; i++) {
+        allData[i + 1] = receivedData[i];
+    }
+
+    // 5. Upload using InfluxDBClient
+    bool uploadSuccess = uploadQueuedData(allData, receivedCount + 1);
+
+    if (uploadSuccess) {
+        DEBUG_PRINTLN("Upload successful.");
+    } else {
+        DEBUG_PRINTLN("Upload failed. Data queued locally.");
+        // TODO: implement SD/Flash queue here if needed
+    }
+
+    // 6. Clear receive buffer
+    receivedCount = 0;
 }

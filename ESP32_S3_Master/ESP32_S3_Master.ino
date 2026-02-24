@@ -13,11 +13,18 @@ void setup() {
     initDustSensor();
     initSD();
     initESPNow();
-
-    // Run the main logic loop once
-    generalRun();
 }
 
 void loop() {
-    // Nothing here, everything handled in generalRun()
+    static uint32_t lastSampleTime = 0;
+    uint32_t currentTime = millis();
+
+    // Run generalRun every 15 seconds (15000 ms)
+    if (currentTime - lastSampleTime >= 30000) {
+        lastSampleTime = currentTime;
+        generalRun();
+    }
+
+    // Small delay to prevent watchdog reset
+    delay(10);
 }
