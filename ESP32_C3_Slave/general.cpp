@@ -2,12 +2,14 @@
 #include "am1001.h"
 #include "gp2y10.h"
 #include "espnow.h"
-
+#include "debugmode.h"
 #include <esp_sleep.h>
 
 void initGeneral() {
     Serial.begin(115200);
-    Serial.println("Node Booting...");
+    DEBUG_MODE = true;
+
+    DEBUG_PRINTLN("Node Booting...");
 }
 
 void readAndSendData() {
@@ -28,13 +30,16 @@ void readAndSendData() {
     // Send via ESP-NOW
     sendToMaster(data);
 
-    // Optional: print for debug
-    Serial.printf("Sent -> Node: %d, Temp: %.2f, Hum: %.2f, Dust: %.2f\n",
-                  data.nodeId, data.temperature, data.humidity, data.dust);
+    // Debug output: sensor values + send result
+    DEBUG_PRINTF("Sent -> Node: %d, Temp: %.2f, Hum: %.2f, Dust: %.2f\n",
+                data.nodeId,
+                data.temperature,
+                data.humidity,
+                data.dust);
 }
 
 void goDeepSleep(uint32_t seconds) {
-    Serial.printf("Going to deep sleep for %d seconds...\n", seconds);
+    DEBUG_PRINTF("Going to deep sleep for %d seconds...\n", seconds);
     esp_sleep_enable_timer_wakeup((uint64_t)seconds * 1000000ULL);
     esp_deep_sleep_start();
 }
