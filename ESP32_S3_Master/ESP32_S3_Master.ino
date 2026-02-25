@@ -1,30 +1,32 @@
 #include "general.h"
 #include "am1001.h"
 #include "gp2y10.h"
-// espnow.h removed
-// sdcard.h removed
 #include "serverconfig.h"
 #include "datatypes.h"
 
+unsigned long lastSampleTime = 0;
+unsigned long lastUploadTime = 0;
+
 void setup() {
-    // Initialize system peripherals
     initGeneral();
     initSensors();
     initDustSensor();
-    // initSD() removed
-    // initESPNow() removed
 }
 
 void loop() {
-    static uint32_t lastSampleTime = 0;
     uint32_t currentTime = millis();
 
-    // Run generalRun every 30 seconds
-    if (currentTime - lastSampleTime >= 30000) {
+    // 1. Collect data every 5 seconds
+    if (currentTime - lastSampleTime >= SAMPLE_INTERVAL_MS) {
         lastSampleTime = currentTime;
-        generalRun();
+        collectSample();
     }
 
-    // Small delay to prevent watchdog reset
+    // 2. Upload average every 60 seconds
+    if (currentTime - lastUploadTime >= UPLOAD_INTERVAL_MS) {
+        lastUploadTime = currentTime;
+        uploadAverage();
+    }
+
     delay(10);
 }

@@ -4,14 +4,16 @@
 #include <Arduino.h>
 #include "datatypes.h"
 
-// Interval for master deep sleep
-#define SAMPLE_INTERVAL_SEC 10
+// New intervals for averaging logic
+#define SAMPLE_INTERVAL_MS 5000   // 5 seconds
+#define UPLOAD_INTERVAL_MS 60000  // 60 seconds
 
 // Initialize serial, debug, etc.
 void initGeneral();
 
-// Main logic routine called from setup()
-void generalRun();
+// New functions for averaging logic
+void collectSample(); 
+void uploadAverage();
 
 // Go to deep sleep for given seconds
 void goDeepSleep(uint32_t seconds);
