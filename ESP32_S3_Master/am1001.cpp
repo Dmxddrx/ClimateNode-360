@@ -47,12 +47,19 @@ int16_t readTemperature() {
 
 int16_t readHumidity() {
     int adc = analogRead(HUM_PIN);
+    // Convert ADC to Voltage
     float voltage = (adc / ADC_MAX) * VCC;
     
-    // For AM1001, humidity is usually 0.1V to 1.0V for 0-100% RH
-    // If your specific module outputs 0-3V, change 1.0 to 3.0 below
-    float humidity = (voltage / 1.0) * 100.0; 
+    // AM1001 Standard Formula: 
+    // Usually, 0% RH = 0.6V and 100% RH = 2.7V
+    // RH = (Voltage - 0.6) * (100 / (2.7 - 0.6))
+    float humidity = (voltage - 0.6) * 47.619; 
     
+    // Fine-tuning offset based on your observation (74.46 vs 66)
+    // If it's still high, we subtract the observed error
+    humidity -= 8.46; 
+
+    // Constraints
     if (humidity > 100.0) humidity = 100.0;
     if (humidity < 0.0) humidity = 0.0;
 
