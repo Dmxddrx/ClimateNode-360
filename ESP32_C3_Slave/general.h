@@ -4,13 +4,16 @@
 #include <Arduino.h>
 #include "datatypes.h"
 
-// Node settings
-#define NODE_ID 3
-#define SAMPLE_INTERVAL_SEC 5  // deep sleep interval in seconds
+// Interval for master deep sleep
+#define SAMPLE_INTERVAL_SEC 10
 
-// Functions
+// Initialize serial, debug, etc.
 void initGeneral();
-void readAndSendData();
+
+// Main logic routine called from setup()
+void generalRun();
+
+// Go to deep sleep for given seconds
 void goDeepSleep(uint32_t seconds);
 
 #endif

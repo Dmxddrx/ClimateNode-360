@@ -2,8 +2,8 @@
 #include <Arduino.h>
 
 // GPIO pin assignment for S3/C3
-#define TEMP_PIN 7
-#define HUM_PIN  6
+#define TEMP_PIN 0
+#define HUM_PIN  1
 
 // Initialize sensor pins
 void initSensors() {

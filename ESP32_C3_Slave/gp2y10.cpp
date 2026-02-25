@@ -3,7 +3,7 @@
 
 // GPIO pin assignment
 #define DUST_LED 3
-#define DUST_PIN 2
+#define DUST_PIN 4
 
 // Initialize the dust sensor pins
 void initDustSensor() {
