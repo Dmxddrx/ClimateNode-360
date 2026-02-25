@@ -44,14 +44,28 @@ uint32_t getValidTimestamp(uint32_t timeoutMs = 10000) {
 }
 
 void collectSample() {
-    tempSum += readTemperature();
+    // Read raw values
+    int16_t rawTemp = readTemperature();
     delay(10);
-    humSum += readHumidity();
+    int16_t rawHum = readHumidity();
     delay(10);
-    dustSum += readDust();
+    int16_t rawDust = readDust();
+
+    // Update sums
+    tempSum += rawTemp;
+    humSum += rawHum;
+    dustSum += rawDust;
     sampleCount++;
 
+    // Print Header
     DEBUG_PRINTF("Sample #%d captured.\n", sampleCount);
+    
+    // Print RAW and Converted data
+    // Temp: raw 2550 -> 25.50 C | Hum: raw 6050 -> 60.50 % | Dust: raw 355 -> 35.5 ug/m3
+    DEBUG_PRINTF("  [RAW] T:%d, H:%d, D:%d\n", rawTemp, rawHum, rawDust);
+    DEBUG_PRINTF("  [CONV] Temp: %.2f C, Hum: %.2f %%, Dust: %.1f ug/m3\n", 
+                 rawTemp / 100.0, rawHum / 100.0, rawDust / 10.0);
+    DEBUG_PRINTLN("-----------------------------------------");
 }
 
 void uploadAverage() {
