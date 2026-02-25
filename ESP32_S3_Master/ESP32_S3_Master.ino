@@ -1,7 +1,7 @@
 #include "general.h"
 #include "am1001.h"
 #include "gp2y10.h"
-#include "espnow.h"
+// espnow.h removed
 // sdcard.h removed
 #include "serverconfig.h"
 #include "datatypes.h"
@@ -12,7 +12,7 @@ void setup() {
     initSensors();
     initDustSensor();
     // initSD() removed
-    initESPNow();
+    // initESPNow() removed
 }
 
 void loop() {
