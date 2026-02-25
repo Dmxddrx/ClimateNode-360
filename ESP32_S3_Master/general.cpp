@@ -32,21 +32,20 @@ void initGeneral() {
 }
 
 //------------------------------------------------------------
-// Wait until NTP time is valid (and not 1970)
+// Wait until NTP time is valid
 //------------------------------------------------------------
 uint32_t getValidTimestamp(uint32_t timeoutMs = 10000) {
     uint32_t start = millis();
     struct tm timeinfo;
     while (millis() - start < timeoutMs) {
         if (getLocalTime(&timeinfo)) {
-            // Check if year is at least 2020 (tm_year is years since 1900)
             if (timeinfo.tm_year >= 120) { 
                 return mktime(&timeinfo);
             }
         }
         delay(200);
     }
-    DEBUG_PRINTLN("Failed to obtain valid NTP time (still in 1970)");
+    DEBUG_PRINTLN("Failed to obtain valid NTP time");
     return 0;
 }
 
@@ -84,37 +83,38 @@ void generalRun() {
     localData.humidity = readHumidity();
     delay(50);
     localData.dust = readDust();
-    localData.timestamp = 0; // will assign after NTP
-    storeLocalReading(localData);
+    localData.timestamp = 0; 
+    
+    // storeLocalReading(localData); // Removed SD storage call
 
     DEBUG_PRINTF("Master Data -> Node: %d, Temp: %.2f, Hum: %.2f, Dust: %.2f\n",
-                 localData.nodeId,
-                 localData.temperature / 100.0,
-                 localData.humidity / 100.0,
-                 localData.dust / 10.0);
+                  localData.nodeId,
+                  localData.temperature / 100.0,
+                  localData.humidity / 100.0,
+                  localData.dust / 10.0);
 
     // 2. Wait for Slave Nodes
     waitForSlavesSmart(SLAVE_TIMEOUT_MS);
 
     for (uint8_t i = 0; i < receivedCount; i++) {
         DEBUG_PRINTF("Slave Data -> Node: %d, Temp: %.2f, Hum: %.2f, Dust: %.2f\n",
-                     receivedData[i].nodeId,
-                     receivedData[i].temperature / 100.0,
-                     receivedData[i].humidity / 100.0,
-                     receivedData[i].dust / 10.0);
+                      receivedData[i].nodeId,
+                      receivedData[i].temperature / 100.0,
+                      receivedData[i].humidity / 100.0,
+                      receivedData[i].dust / 10.0);
     }
 
     // 3. Ensure network is available
     DEBUG_PRINTLN("Checking network for time sync...");
     if (!isNetworkAvailable()) {
         DEBUG_PRINTLN("Network unavailable. Upload aborted.");
-        return; // exit safely
+        return; 
     }
 
-    // 4. Ensure NTP time is valid before assigning timestamp
-    uint32_t now = getValidTimestamp(10000); // wait up to 10s
+    // 4. Ensure NTP time is valid
+    uint32_t now = getValidTimestamp(10000); 
     if (now == 0) {
-        DEBUG_PRINTLN("Time sync failed. Upload aborted to prevent 1970 data.");
+        DEBUG_PRINTLN("Time sync failed. Upload aborted.");
         return;
     }
     DEBUG_PRINTF("Time synced: %lu\n", now);
@@ -141,16 +141,16 @@ void generalRun() {
         success = uploadQueuedData(allData, receivedCount + 1);
         if (!success) {
             DEBUG_PRINTF("Upload failed. Retrying (%d/%d)...\n",
-                         retryCount + 1, maxRetries);
+                          retryCount + 1, maxRetries);
             retryCount++;
-            delay(2000); // wait 2s before retry
+            delay(2000); 
         }
     }
 
     if (success) {
         DEBUG_PRINTLN("Upload successful.");
     } else {
-        DEBUG_PRINTLN("Upload failed after retries. Data queued locally.");
+        DEBUG_PRINTLN("Upload failed after retries.");
     }
 
     // 7. Clear receive buffer
