@@ -1,6 +1,6 @@
 #include "general.h"
-#include "am1001.h"
-#include "gp2y10.h"
+#include "SHT30.h"
+#include "ADS1115_Dust.h"
 #include "serverconfig.h"
 #include "debugmode.h"
 #include "datatypes.h"
@@ -8,21 +8,23 @@
 #include <time.h>
 #include <InfluxDbClient.h>
 
-// NTP Settings
 #define NTP_SERVER      "pool.ntp.org"
-#define GMT_OFFSET_SEC  19800     // Sri Lanka = UTC+5:30
+#define GMT_OFFSET_SEC  19800     
 #define DAYLIGHT_OFFSET 0
 
 static float tempSum = 0, humSum = 0, dustSum = 0;
 static int sampleCount = 0;
 
 void initGeneral() {
-    // C3 supports 115200 baud; Ensure Serial Monitor is set correctly
     Serial.begin(115200);
     delay(100);
     DEBUG_MODE = true; 
 
-    DEBUG_PRINTLN("===== MASTER BOOT (C3 - AVERAGING MODE) =====");
+    DEBUG_PRINTLN("===== MASTER BOOT (C3 - I2C UPGRADE) =====");
+    
+    initSHT30();        
+    initDustSensor();   
+    
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET, NTP_SERVER);
 }
 
