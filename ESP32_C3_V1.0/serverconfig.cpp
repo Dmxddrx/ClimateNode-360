@@ -4,9 +4,6 @@
 #include <HTTPClient.h>
 #include "debugmode.h"
 
-#if defined(ESP32)
-  WiFiMulti wifiMulti;
-#endif
 
 // -----------------------------
 // Network Check
@@ -14,11 +11,15 @@
 bool isNetworkAvailable() {
     if (WiFi.status() == WL_CONNECTED) return true;
 
+    // If it dropped, force a clean reconnect
+    DEBUG_PRINTLN("WiFi dropped. Reconnecting...");
+    WiFi.disconnect();
     WiFi.mode(WIFI_STA);
-    wifiMulti.addAP(WIFI_SSID, WIFI_PASS);
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
 
     uint32_t start = millis();
-    while (wifiMulti.run() != WL_CONNECTED && millis() - start < 8000) {
+    // Give it up to 8 seconds to recover
+    while (WiFi.status() != WL_CONNECTED && millis() - start < 8000) {
         delay(100);
     }
 

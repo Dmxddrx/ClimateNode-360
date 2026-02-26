@@ -5,12 +5,6 @@
 #include "debugmode.h"
 #include "datatypes.h"
 #include <WiFi.h>
-#include <time.h>
-#include <InfluxDbClient.h>
-
-#define NTP_SERVER      "pool.ntp.org"
-#define GMT_OFFSET_SEC  19800     
-#define DAYLIGHT_OFFSET 0
 
 static float tempSum = 0, humSum = 0, dustSum = 0;
 static int sampleCount = 0;
@@ -24,23 +18,11 @@ void initGeneral() {
     
     initSHT30();        
     initDustSensor();   
-    
-    configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET, NTP_SERVER);
-}
 
-uint32_t getValidTimestamp(uint32_t timeoutMs = 10000) {
-    uint32_t start = millis();
-    struct tm timeinfo;
-    while (millis() - start < timeoutMs) {
-        if (getLocalTime(&timeinfo)) {
-            if (timeinfo.tm_year >= 120) { 
-                return mktime(&timeinfo);
-            }
-        }
-        delay(200);
-    }
-    DEBUG_PRINTLN("Failed to obtain valid NTP time");
-    return 0;
+    // NEW: Start WiFi connection immediately at boot
+    DEBUG_PRINTLN("Starting WiFi in background...");
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
 }
 
 void collectSample() {
@@ -79,7 +61,7 @@ void uploadAverage() {
     localData.temperature = (int32_t)(tempSum / sampleCount);
     localData.humidity    = (int32_t)(humSum / sampleCount);
     localData.dust        = (int32_t)(dustSum / sampleCount);
-    localData.timestamp   = 0;
+    localData.timestamp   = 0; // Kept at 0 so it doesn't break datatypes.h
 
     DEBUG_PRINTF("Avg Data -> Temp: %.2f, Hum: %.2f, Dust: %.2f\n",
                   localData.temperature / 100.0,
@@ -89,25 +71,22 @@ void uploadAverage() {
     if (!isNetworkAvailable()) {
         DEBUG_PRINTLN("Network unavailable. Upload aborted.");
     } else {
-        uint32_t now = getValidTimestamp(10000); 
-        if (now != 0) {
-            localData.timestamp = now;
-            SensorData allData[1];
-            allData[0] = localData;
+        SensorData allData[1];
+        allData[0] = localData;
 
-            int retryCount = 0;
-            const int maxRetries = 3;
-            bool success = false;
+        int retryCount = 0;
+        const int maxRetries = 3;
+        bool success = false;
 
-            while (retryCount < maxRetries && !success) {
-                success = uploadQueuedData(allData, 1);
-                if (!success) {
-                    retryCount++;
-                    delay(2000); 
-                }
+        // Instantly upload without waiting for NTP sync
+        while (retryCount < maxRetries && !success) {
+            success = uploadQueuedData(allData, 1);
+            if (!success) {
+                retryCount++;
+                delay(2000); 
             }
-            if (success) DEBUG_PRINTLN("Upload successful.");
         }
+        if (success) DEBUG_PRINTLN("Upload successful.");
     }
 
     tempSum = 0;
