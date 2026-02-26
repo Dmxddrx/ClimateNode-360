@@ -1,9 +1,7 @@
 #include "serverconfig.h"
 #include <WiFi.h>
-#include <WiFiMulti.h>
 #include <HTTPClient.h>
 #include "debugmode.h"
-
 
 // -----------------------------
 // Network Check
@@ -11,19 +9,38 @@
 bool isNetworkAvailable() {
     if (WiFi.status() == WL_CONNECTED) return true;
 
-    // If it dropped, force a clean reconnect
-    DEBUG_PRINTLN("WiFi dropped. Reconnecting...");
-    WiFi.disconnect();
+    DEBUG_PRINTLN("WiFi not connected!");
+    DEBUG_PRINTF("Current WiFi Status Code: %d\n", WiFi.status());
+
+    // 1. Give the background connection a few seconds to finish if it's busy
+    DEBUG_PRINTLN("Waiting 4s to see if background connection finishes...");
+    uint32_t start = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - start < 4000) {
+        delay(100);
+    }
+
+    if (WiFi.status() == WL_CONNECTED) return true;
+
+    // 2. If still stuck, do a HARD reset of the WiFi radio
+    DEBUG_PRINTLN("Connection stuck. Forcing hardware reconnect...");
+    WiFi.disconnect(true); // 'true' physically turns off the WiFi radio to kill the stuck task
+    delay(500);            // Give the radio time to fully power down and clear the error
+
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
 
-    uint32_t start = millis();
+    start = millis();
     // Give it up to 8 seconds to recover
     while (WiFi.status() != WL_CONNECTED && millis() - start < 8000) {
         delay(100);
     }
 
-    return (WiFi.status() == WL_CONNECTED);
+    if (WiFi.status() != WL_CONNECTED) {
+        DEBUG_PRINTF("Reconnect failed. Final Status Code: %d\n", WiFi.status());
+        return false;
+    }
+
+    return true;
 }
 
 // -----------------------------
