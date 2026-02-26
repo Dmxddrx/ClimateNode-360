@@ -11,7 +11,6 @@ Adafruit_ADS1115 ads;
 void initDustSensor() {
     pinMode(DUST_LED, OUTPUT);
     digitalWrite(DUST_LED, HIGH); 
-    Wire.begin(I2C_SDA, I2C_SCL);
     ads.begin(0x48);
     ads.setGain(GAIN_ONE); 
 }

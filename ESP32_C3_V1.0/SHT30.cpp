@@ -7,10 +7,7 @@
 
 Adafruit_SHT31 sht30 = Adafruit_SHT31();
 
-void initSHT30() {
-    Wire.begin(I2C_SDA, I2C_SCL);
-    Wire.setClock(100000); 
-    Wire.setTimeOut(50);   
+void initSHT30() {  
     sht30.begin(0x44);
 }
 

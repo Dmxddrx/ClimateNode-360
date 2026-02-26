@@ -18,6 +18,10 @@ void initGeneral() {
     delay(100);
     DEBUG_MODE = true; 
 
+    Wire.begin(6, 7);          // INIT I2C ONLY ONCE
+    Wire.setClock(100000);
+    Wire.setTimeOut(50);
+
     esp_task_wdt_deinit(); 
     esp_task_wdt_config_t wdt_config = {
         .timeout_ms = 30000, 
@@ -54,9 +58,6 @@ void collectSample() {
 void uploadAverage() {
     DEBUG_PRINTLN("Target reached. Muting I2C for WiFi...");
 
-    // SHUT DOWN I2C to prevent noise/interference
-    Wire.end(); 
-    delay(200);
 
     SensorData localData;
     localData.nodeId = 1;
@@ -70,10 +71,6 @@ void uploadAverage() {
         DEBUG_PRINTLN("Upload Failed.");
     }
 
-    // RESTART I2C for next cycle
-    DEBUG_PRINTLN("Restarting I2C...");
-    initSHT30();
-    initDustSensor();
 
     tempSum = 0; humSum = 0; dustSum = 0; sampleCount = 0;
 }

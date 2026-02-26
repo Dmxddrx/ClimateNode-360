@@ -5,24 +5,24 @@
 bool isNetworkAvailable() {
     if (WiFi.status() == WL_CONNECTED) return true;
 
-    DEBUG_PRINTLN("Activating WiFi Stack...");
     WiFi.mode(WIFI_STA);
+    WiFi.setTxPower(WIFI_POWER_8_5dBm);
+    WiFi.setSleep(false);   // VERY IMPORTANT FOR C3 STABILITY
     WiFi.begin(WIFI_SSID, WIFI_PASS);
 
     uint32_t start = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
-        delay(500);
-        DEBUG_PRINT(".");
-        esp_task_wdt_reset(); 
+        delay(100);
+        esp_task_wdt_reset();
     }
 
     if (WiFi.status() == WL_CONNECTED) {
-        DEBUG_PRINTF("\nConnected! IP: %s\n", WiFi.localIP().toString().c_str());
+        DEBUG_PRINTF("Connected! IP: %s\n", WiFi.localIP().toString().c_str());
         return true;
-    } else {
-        DEBUG_PRINTF("\nWiFi Failed. Status: %d\n", WiFi.status());
-        return false;
     }
+
+    DEBUG_PRINTLN("WiFi Failed.");
+    return false;
 }
 
 bool uploadQueuedData(SensorData *dataArray, uint8_t count) {
@@ -53,6 +53,5 @@ bool uploadQueuedData(SensorData *dataArray, uint8_t count) {
         http.end();
     }
 
-    WiFi.disconnect(true);  
     return success;
 }
