@@ -1,82 +1,66 @@
 #include "serverconfig.h"
 #include <WiFi.h>
 #include <WiFiMulti.h>
+#include <HTTPClient.h>
 #include "debugmode.h"
 
 #if defined(ESP32)
   WiFiMulti wifiMulti;
 #endif
 
-InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
-
-// Track if AP was already added to prevent memory leaks in WiFiMulti
-static bool apAdded = false;
-
+// -----------------------------
+// Network Check
+// -----------------------------
 bool isNetworkAvailable() {
-    // 1. Initialize WiFi mode if not already done
-    if (WiFi.getMode() != WIFI_STA) {
-        WiFi.mode(WIFI_STA);
-    }
+    if (WiFi.status() == WL_CONNECTED) return true;
 
-    // 2. Add AP only once
-    if (!apAdded) {
-        wifiMulti.addAP(WIFI_SSID, WIFI_PASS);
-        apAdded = true;
-    }
+    WiFi.mode(WIFI_STA);
+    wifiMulti.addAP(WIFI_SSID, WIFI_PASS);
 
-    // 3. If already connected, return true immediately
-    if (WiFi.status() == WL_CONNECTED) {
-        return true;
-    }
-
-    // 4. Attempt connection
-    DEBUG_PRINTLN("WiFi connecting...");
     uint32_t start = millis();
-    
-    // Increased timeout to 12s. C3 sometimes takes longer to DHCP than S3.
-    while (wifiMulti.run() != WL_CONNECTED && millis() - start < 12000) {
-        delay(500); // 500ms allows the background WiFi task to breathe
-        DEBUG_PRINT("."); 
+    while (wifiMulti.run() != WL_CONNECTED && millis() - start < 8000) {
+        delay(100);
     }
 
-    if (WiFi.status() == WL_CONNECTED) {
-        DEBUG_PRINTLN("\nWiFi Connected!");
-        DEBUG_PRINT("IP Address: ");
-        DEBUG_PRINTLN(WiFi.localIP().toString().c_str());
-        return true;
-    } else {
-        // Diagnostic: Why did it fail?
-        DEBUG_PRINT("\nWiFi Failed. Status Code: ");
-        DEBUG_PRINTLN(String(WiFi.status()).c_str()); 
-        // 4 = WL_CONNECT_FAILED, 6 = WL_DISCONNECTED, 1 = WL_NO_SSID_AVAIL
-        return false;
-    }
+    return (WiFi.status() == WL_CONNECTED);
 }
 
+// -----------------------------
+// Upload SensorData Array to Local MySQL
+// -----------------------------
 bool uploadQueuedData(SensorData *dataArray, uint8_t count) {
     if (count == 0 || dataArray == nullptr) return false;
-    
-    // Check network - this will now print detailed dots and IP on success
     if (!isNetworkAvailable()) return false;
 
     bool success = true;
-    for (uint8_t i = 0; i < count; i++) {
-        Point sensor("climate_data");
-        sensor.addTag("nodeId", String(dataArray[i].nodeId));
-        sensor.addField("temperature", dataArray[i].temperature / 100.0);
-        sensor.addField("humidity", dataArray[i].humidity / 100.0);
-        sensor.addField("dust", dataArray[i].dust / 10.0);
-        
-        uint64_t timestampNS = (uint64_t)dataArray[i].timestamp * 1000000000ULL;
-        sensor.setTime(timestampNS);
 
-        if (!client.writePoint(sensor)) {
-            DEBUG_PRINTF("InfluxDB write failed: %s\n", client.getLastErrorMessage().c_str());
+    for (uint8_t i = 0; i < count; i++) {
+        HTTPClient http;
+        http.begin(SERVER_URL);
+        http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+
+        // Format data exactly as your PHP script expects
+        // Note: We use the raw integers/floats from your struct
+        String postData = "node_id=" + String(dataArray[i].nodeId) + 
+                          "&temp=" + String(dataArray[i].temperature / 100.0) + 
+                          "&hum=" + String(dataArray[i].humidity / 100.0) + 
+                          "&dust=" + String(dataArray[i].dust / 10.0);
+
+        int httpResponseCode = http.POST(postData);
+
+        if (httpResponseCode > 0) {
+            // Success response from your PHP script
+            DEBUG_PRINTF("Upload Success: %d\n", httpResponseCode);
+        } else {
+            DEBUG_PRINTF("Local SQL write failed: %s\n", http.errorToString(httpResponseCode).c_str());
             success = false;
         }
+        
+        http.end();
     }
 
-    // Note: Removed WiFi.disconnect(true). 
-    // On the C3, keeping the connection alive is more stable than reconnecting every minute.
+    // Optional: Only disconnect if you want to save power between batches
+    // WiFi.disconnect(true); 
+    
     return success;
 }

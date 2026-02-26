@@ -14,6 +14,8 @@ void setup() {
 }
 
 void loop() {
+    feedWatchdog();
+    
     uint32_t currentTime = millis();
 
     // 1. Collect data every 5 seconds
