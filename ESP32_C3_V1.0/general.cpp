@@ -1,10 +1,14 @@
 #include "general.h"
-#include "SHT30.h"
-#include "ADS1115_Dust.h"
+#include "SHT30.h"         
+#include "ADS1115_Dust.h"  
 #include "serverconfig.h"
 #include "debugmode.h"
 #include "datatypes.h"
 #include <WiFi.h>
+#include <Wire.h>
+#include <esp_task_wdt.h>
+
+#define MAX_SAMPLES 5 
 
 static float tempSum = 0, humSum = 0, dustSum = 0;
 static int sampleCount = 0;
@@ -14,83 +18,62 @@ void initGeneral() {
     delay(100);
     DEBUG_MODE = true; 
 
-    DEBUG_PRINTLN("===== MASTER BOOT (C3 - I2C UPGRADE) =====");
-    
-    initSHT30();        
-    initDustSensor();   
+    esp_task_wdt_deinit(); 
+    esp_task_wdt_config_t wdt_config = {
+        .timeout_ms = 30000, 
+        .idle_core_mask = (1 << portNUM_PROCESSORS) - 1, 
+        .trigger_panic = true 
+    };
+    esp_task_wdt_init(&wdt_config);
+    esp_task_wdt_add(NULL);
 
-    // NEW: Start WiFi connection immediately at boot
-    DEBUG_PRINTLN("Starting WiFi in background...");
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    DEBUG_PRINTLN("===== SYSTEM START (C3 STABILITY MODE) =====");
 }
 
-void collectSample() {
-    // Read raw values
-    int16_t rawTemp = readTemperature();
-    delay(10);
-    int16_t rawHum = readHumidity();
-    delay(10);
-    int16_t rawDust = readDust();
+void feedWatchdog() { esp_task_wdt_reset(); }
 
-    // Update sums
+void collectSample() {
+    int16_t rawTemp = readTemperature(); 
+    delay(10);
+    int16_t rawHum  = readHumidity();    
+    delay(10);
+    int16_t rawDust = readDust();      
+
     tempSum += rawTemp;
-    humSum += rawHum;
+    humSum  += rawHum;
     dustSum += rawDust;
     sampleCount++;
 
-    // Print Header
-    DEBUG_PRINTF("Sample #%d captured.\n", sampleCount);
-    
-    // Print RAW and Converted data
-    // Temp: raw 2550 -> 25.50 C | Hum: raw 6050 -> 60.50 % | Dust: raw 355 -> 35.5 ug/m3
-    DEBUG_PRINTF("  [RAW] T:%d, H:%d, D:%d\n", rawTemp, rawHum, rawDust);
-    DEBUG_PRINTF("  [CONV] Temp: %.2f C, Hum: %.2f %%, Dust: %.1f ug/m3\n", 
-                 rawTemp / 100.0, rawHum / 100.0, rawDust / 10.0);
-    DEBUG_PRINTLN("-----------------------------------------");
+    DEBUG_PRINTF("Sample #%d/%d Captured.\n", sampleCount, MAX_SAMPLES);
+
+    if (sampleCount >= MAX_SAMPLES) {
+        uploadAverage();
+    }
 }
 
 void uploadAverage() {
-    if (sampleCount == 0) return;
+    DEBUG_PRINTLN("Target reached. Muting I2C for WiFi...");
 
-    DEBUG_PRINTLN("Processing 60s average and uploading...");
+    // SHUT DOWN I2C to prevent noise/interference
+    Wire.end(); 
+    delay(200);
 
     SensorData localData;
-    localData.nodeId = 0;
-    
+    localData.nodeId = 1;
     localData.temperature = (int32_t)(tempSum / sampleCount);
     localData.humidity    = (int32_t)(humSum / sampleCount);
     localData.dust        = (int32_t)(dustSum / sampleCount);
-    localData.timestamp   = 0; // Kept at 0 so it doesn't break datatypes.h
 
-    DEBUG_PRINTF("Avg Data -> Temp: %.2f, Hum: %.2f, Dust: %.2f\n",
-                  localData.temperature / 100.0,
-                  localData.humidity / 100.0,
-                  localData.dust / 10.0);
-
-    if (!isNetworkAvailable()) {
-        DEBUG_PRINTLN("Network unavailable. Upload aborted.");
+    if (uploadQueuedData(&localData, 1)) {
+        DEBUG_PRINTLN("Upload Success.");
     } else {
-        SensorData allData[1];
-        allData[0] = localData;
-
-        int retryCount = 0;
-        const int maxRetries = 3;
-        bool success = false;
-
-        // Instantly upload without waiting for NTP sync
-        while (retryCount < maxRetries && !success) {
-            success = uploadQueuedData(allData, 1);
-            if (!success) {
-                retryCount++;
-                delay(2000); 
-            }
-        }
-        if (success) DEBUG_PRINTLN("Upload successful.");
+        DEBUG_PRINTLN("Upload Failed.");
     }
 
-    tempSum = 0;
-    humSum = 0;
-    dustSum = 0;
-    sampleCount = 0;
+    // RESTART I2C for next cycle
+    DEBUG_PRINTLN("Restarting I2C...");
+    initSHT30();
+    initDustSensor();
+
+    tempSum = 0; humSum = 0; dustSum = 0; sampleCount = 0;
 }

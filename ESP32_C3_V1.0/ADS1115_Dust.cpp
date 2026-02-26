@@ -1,41 +1,31 @@
 #include "ADS1115_Dust.h"
-#include <Arduino.h>
 #include <Adafruit_ADS1X15.h>
+#include <Wire.h>
 
 #define DUST_LED 4
+#define I2C_SDA 6
+#define I2C_SCL 7
 
 Adafruit_ADS1115 ads;
-
-const int samplingTime = 280; 
-const int deltaTime = 40;
-const int sleepTime = 9680;
-
-const float VOC = 0.6;          
-const float SENSITIVITY = 0.17; 
 
 void initDustSensor() {
     pinMode(DUST_LED, OUTPUT);
     digitalWrite(DUST_LED, HIGH); 
-
-    // Silent initialization
+    Wire.begin(I2C_SDA, I2C_SCL);
     ads.begin(0x48);
     ads.setGain(GAIN_ONE); 
 }
 
 int16_t readDust() {
     digitalWrite(DUST_LED, LOW); 
-    delayMicroseconds(samplingTime);
-
+    delayMicroseconds(280);
     int16_t adc0 = ads.readADC_SingleEnded(0);
-    
-    delayMicroseconds(deltaTime);
+    delayMicroseconds(40);
     digitalWrite(DUST_LED, HIGH); 
-    delayMicroseconds(sleepTime);
+    delayMicroseconds(9680);
 
     float voltage = adc0 * 0.125 / 1000.0;
-    float dustDensity = (voltage - VOC) * (100.0 / SENSITIVITY);
-    
+    float dustDensity = (voltage - 0.6) * (100.0 / 0.17);
     if (dustDensity < 0) dustDensity = 0;
-
     return (int16_t)(dustDensity * 10); 
 }

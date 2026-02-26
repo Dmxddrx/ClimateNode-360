@@ -1,84 +1,58 @@
 #include "serverconfig.h"
-#include <WiFi.h>
-#include <HTTPClient.h>
 #include "debugmode.h"
+#include <esp_task_wdt.h>
 
-// -----------------------------
-// Network Check
-// -----------------------------
 bool isNetworkAvailable() {
     if (WiFi.status() == WL_CONNECTED) return true;
 
-    DEBUG_PRINTLN("WiFi not connected!");
-    DEBUG_PRINTF("Current WiFi Status Code: %d\n", WiFi.status());
-
-    // 1. Give the background connection a few seconds to finish if it's busy
-    DEBUG_PRINTLN("Waiting 4s to see if background connection finishes...");
-    uint32_t start = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - start < 4000) {
-        delay(100);
-    }
-
-    if (WiFi.status() == WL_CONNECTED) return true;
-
-    // 2. If still stuck, do a HARD reset of the WiFi radio
-    DEBUG_PRINTLN("Connection stuck. Forcing hardware reconnect...");
-    WiFi.disconnect(true); // 'true' physically turns off the WiFi radio to kill the stuck task
-    delay(500);            // Give the radio time to fully power down and clear the error
-
+    DEBUG_PRINTLN("Activating WiFi Stack...");
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
 
-    start = millis();
-    // Give it up to 8 seconds to recover
-    while (WiFi.status() != WL_CONNECTED && millis() - start < 8000) {
-        delay(100);
+    uint32_t start = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
+        delay(500);
+        DEBUG_PRINT(".");
+        esp_task_wdt_reset(); 
     }
 
-    if (WiFi.status() != WL_CONNECTED) {
-        DEBUG_PRINTF("Reconnect failed. Final Status Code: %d\n", WiFi.status());
+    if (WiFi.status() == WL_CONNECTED) {
+        DEBUG_PRINTF("\nConnected! IP: %s\n", WiFi.localIP().toString().c_str());
+        return true;
+    } else {
+        DEBUG_PRINTF("\nWiFi Failed. Status: %d\n", WiFi.status());
         return false;
     }
-
-    return true;
 }
 
-// -----------------------------
-// Upload SensorData Array to Local MySQL
-// -----------------------------
 bool uploadQueuedData(SensorData *dataArray, uint8_t count) {
     if (count == 0 || dataArray == nullptr) return false;
     if (!isNetworkAvailable()) return false;
 
     bool success = true;
+    HTTPClient http;
 
     for (uint8_t i = 0; i < count; i++) {
-        HTTPClient http;
         http.begin(SERVER_URL);
         http.addHeader("Content-Type", "application/x-www-form-urlencoded");
 
-        // Format data exactly as your PHP script expects
-        // Note: We use the raw integers/floats from your struct
-        String postData = "node_id=" + String(dataArray[i].nodeId) + 
-                          "&temp=" + String(dataArray[i].temperature / 100.0) + 
-                          "&hum=" + String(dataArray[i].humidity / 100.0) + 
-                          "&dust=" + String(dataArray[i].dust / 10.0);
+        // SQL Column Names: node_id, temp, hum, dust
+        String httpRequestData = "node_id=" + String(dataArray[i].nodeId) +
+                                 "&temp="    + String(dataArray[i].temperature / 100.0) +
+                                 "&hum="     + String(dataArray[i].humidity / 100.0) +
+                                 "&dust="    + String(dataArray[i].dust / 10.0);
 
-        int httpResponseCode = http.POST(postData);
+        int httpResponseCode = http.POST(httpRequestData);
 
         if (httpResponseCode > 0) {
-            // Success response from your PHP script
-            DEBUG_PRINTF("Upload Success: %d\n", httpResponseCode);
+            DEBUG_PRINTF("Server Response: %d\n", httpResponseCode);
         } else {
-            DEBUG_PRINTF("Local SQL write failed: %s\n", http.errorToString(httpResponseCode).c_str());
+            DEBUG_PRINTF("Post Failed: %s\n", http.errorToString(httpResponseCode).c_str());
             success = false;
         }
-        
         http.end();
     }
 
-    // Optional: Only disconnect if you want to save power between batches
-    // WiFi.disconnect(true); 
-    
+    WiFi.disconnect(true);  
     return success;
 }

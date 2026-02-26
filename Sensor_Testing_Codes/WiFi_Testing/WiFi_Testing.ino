@@ -2,29 +2,30 @@
 
 // Your network credentials
 const char* ssid = "ENTGRA 2.5G";
-const char* password = "Entgra@110";
+const char* password = "Entgra@110"; 
+
+/*const char* ssid = "Dmx's Note20 Ultra";
+const char* password = "11111129";*/
+
 
 void setup() {
-    // Start serial communication
     Serial.begin(115200);
-    delay(2000); // Give the C3 serial port time to initialize
+    delay(2000); 
     
-    Serial.println("\n\n--- ESP32-C3 WiFi Diagnostic Test ---");
+    Serial.println("\n--- stability patch applied ---");
 
-    // 1. Hard reset the WiFi hardware
-    Serial.println("Resetting WiFi radio...");
     WiFi.disconnect(true);
     delay(1000); 
 
-    // 2. Set to Station mode (Client)
     WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false); // <--- CRITICAL: Prevents the radio from "dozing off"
     
-    // Print the MAC Address (useful to check if your router is blocking it)
     Serial.print("ESP32-C3 MAC Address: ");
     Serial.println(WiFi.macAddress());
 
-    // 3. Start connection
     Serial.printf("Attempting to connect to SSID: %s\n", ssid);
+    
+    // Explicitly begin
     WiFi.begin(ssid, password);
 
     // 4. Wait for connection with a 15-second timeout
@@ -33,6 +34,12 @@ void setup() {
         delay(500);
         Serial.print(".");
         attempts++;
+
+        // If it gets stuck for 5 seconds, try to "poke" it again
+        if (attempts == 10) {
+            Serial.println("\nRetrying WiFi.begin()...");
+            WiFi.begin(ssid, password);
+        }
     }
     Serial.println(); // New line
 
