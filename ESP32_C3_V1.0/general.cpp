@@ -18,6 +18,25 @@ void initGeneral() {
     delay(100);
     DEBUG_MODE = true; 
 
+    /*
+    ESP32 Reset Reasons:
+
+    1  = ESP_RST_POWERON      // Power-on reset
+    2  = ESP_RST_EXT          // External reset (RST pin)
+    3  = ESP_RST_SW           // Software reset (esp_restart)
+    4  = ESP_RST_PANIC        // Exception / Guru Meditation
+    5  = ESP_RST_INT_WDT      // Interrupt watchdog
+    6  = ESP_RST_TASK_WDT     // Task watchdog
+    7  = ESP_RST_WDT          // Other watchdog
+    8  = ESP_RST_DEEPSLEEP    // Wake from deep sleep
+    9  = ESP_RST_BROWNOUT     // Brownout (low voltage)
+    10 = ESP_RST_SDIO         // SDIO reset
+    11 = ESP_RST_USB          // USB reset
+    12 = ESP_RST_JTAG         // JTAG reset    */
+
+    esp_reset_reason_t reason = esp_reset_reason();
+    Serial.printf("Reset reason: %d\n", reason);
+
     Wire.begin(6, 7);          // INIT I2C ONLY ONCE
     Wire.setClock(100000);
     Wire.setTimeOut(50);
@@ -60,7 +79,7 @@ void uploadAverage() {
 
 
     SensorData localData;
-    localData.nodeId = 1;
+    localData.nodeId = 0;
     localData.temperature = (int32_t)(tempSum / sampleCount);
     localData.humidity    = (int32_t)(humSum / sampleCount);
     localData.dust        = (int32_t)(dustSum / sampleCount);
