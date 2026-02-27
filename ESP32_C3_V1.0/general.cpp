@@ -9,9 +9,11 @@
 #include <esp_task_wdt.h>
 
 #define MAX_SAMPLES 5 
+#define SKIP_UPLOADS 4  // number of uploads to skip dust measurement
 
 static float tempSum = 0, humSum = 0, dustSum = 0;
 static int sampleCount = 0;
+static int uploadCounter = 0;  // track how many uploads done
 
 void initGeneral() {
     Serial.begin(115200);
@@ -60,7 +62,14 @@ void collectSample() {
     delay(10);
     int16_t rawHum  = readHumidity();    
     delay(10);
-    int16_t rawDust = readDust();      
+
+    int16_t rawDust;
+    // Only measure dust during first 5 samples of cycle
+    if (uploadCounter % (SKIP_UPLOADS + 1) == 0) {
+        rawDust = readDust();  // active measurement
+    } else {
+        rawDust = getLastDustAverage();  // use last known average
+    }    
 
     tempSum += rawTemp;
     humSum  += rawHum;
@@ -79,7 +88,7 @@ void uploadAverage() {
 
 
     SensorData localData;
-    localData.nodeId = 3;
+    localData.nodeId = 1;
     localData.temperature = (int32_t)(tempSum / sampleCount);
     localData.humidity    = (int32_t)(humSum / sampleCount);
     localData.dust        = (int32_t)(dustSum / sampleCount);
@@ -92,4 +101,5 @@ void uploadAverage() {
 
 
     tempSum = 0; humSum = 0; dustSum = 0; sampleCount = 0;
+    uploadCounter++;
 }

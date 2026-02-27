@@ -9,4 +9,6 @@ void initDustSensor();
 // Read dust concentration via ADS1115, scaled x10
 int16_t readDust();
 
+int16_t getLastDustAverage();
+
 #endif
