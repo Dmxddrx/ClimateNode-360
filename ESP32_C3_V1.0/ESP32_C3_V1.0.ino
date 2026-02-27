@@ -4,18 +4,18 @@
 #include "serverconfig.h"
 
 unsigned long lastSampleTime = 0;
-const unsigned long SAMPLE_GAP = 11000; // 3 sec x 5 samples = 15 sec total
+const unsigned long SAMPLE_GAP = 15000; //  sec x 5 samples
 
 void setup() {
     initGeneral();
     initSHT30();           
-    initDustSensor();      
+    initDustSensor();     
 }
 
 void loop() {
     feedWatchdog();
     if (millis() - lastSampleTime >= SAMPLE_GAP) {
-        lastSampleTime = millis();
+        lastSampleTime += SAMPLE_GAP; 
         collectSample();
     }
 }
