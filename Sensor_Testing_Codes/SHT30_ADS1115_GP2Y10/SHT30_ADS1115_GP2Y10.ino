@@ -49,7 +49,7 @@ void loop() {
   digitalWrite(DUST_LED, LOW); // Turn on LED
   delayMicroseconds(samplingTime);
 
-  int16_t adc0 = ads.readADC_SingleEnded(0);
+  int16_t adc0 = ads.readADC_SingleEnded(3);
   
   delayMicroseconds(deltaTime);
   digitalWrite(DUST_LED, HIGH); // Turn off LED

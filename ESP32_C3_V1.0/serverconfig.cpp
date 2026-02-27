@@ -29,29 +29,34 @@ bool uploadQueuedData(SensorData *dataArray, uint8_t count) {
     if (count == 0 || dataArray == nullptr) return false;
     if (!isNetworkAvailable()) return false;
 
-    bool success = true;
     HTTPClient http;
+    bool success = true;
 
+    // ----------------------------
+    // Build a single payload for all readings
+    // ----------------------------
+    String payload = "";
     for (uint8_t i = 0; i < count; i++) {
-        http.begin(SERVER_URL);
-        http.addHeader("Content-Type", "application/x-www-form-urlencoded");
-
-        // SQL Column Names: node_id, temp, hum, dust
-        String httpRequestData = "node_id=" + String(dataArray[i].nodeId) +
-                                 "&temp="    + String(dataArray[i].temperature / 100.0) +
-                                 "&hum="     + String(dataArray[i].humidity / 100.0) +
-                                 "&dust="    + String(dataArray[i].dust / 10.0);
-
-        int httpResponseCode = http.POST(httpRequestData);
-
-        if (httpResponseCode > 0) {
-            DEBUG_PRINTF("Server Response: %d\n", httpResponseCode);
-        } else {
-            DEBUG_PRINTF("Post Failed: %s\n", http.errorToString(httpResponseCode).c_str());
-            success = false;
-        }
-        http.end();
+        if (i > 0) payload += "&";  // separate multiple entries if URL-encoded
+        payload += "node_id=" + String(dataArray[i].nodeId) +
+                   "&temp="    + String(dataArray[i].temperature / 100.0) +
+                   "&hum="     + String(dataArray[i].humidity / 100.0) +
+                   "&dust="    + String(dataArray[i].dust / 10.0);
     }
 
+    http.begin(SERVER_URL);
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    http.addHeader("Connection", "keep-alive"); // optional but reduces overhead
+
+    int httpResponseCode = http.POST(payload);
+
+    if (httpResponseCode > 0) {
+        DEBUG_PRINTF("Server Response: %d\n", httpResponseCode);
+    } else {
+        DEBUG_PRINTF("Post Failed: %s\n", http.errorToString(httpResponseCode).c_str());
+        success = false;
+    }
+
+    http.end();  // close the single connection
     return success;
 }

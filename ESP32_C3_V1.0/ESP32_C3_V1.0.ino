@@ -4,7 +4,7 @@
 #include "serverconfig.h"
 
 unsigned long lastSampleTime = 0;
-const unsigned long SAMPLE_GAP = 15000; // 3 sec x 5 samples = 15 sec total
+const unsigned long SAMPLE_GAP = 11000; // 3 sec x 5 samples = 15 sec total
 
 void setup() {
     initGeneral();
