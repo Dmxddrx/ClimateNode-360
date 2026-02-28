@@ -3,13 +3,8 @@
 #include <Wire.h>
 
 #define DUST_LED 4
-#define I2C_SDA 6
-#define I2C_SCL 7
 
 Adafruit_ADS1115 ads;
-
-// Track dust sensor average for sleep uploads
-static int16_t lastDustAverage = 0;
 
 void initDustSensor() {
     pinMode(DUST_LED, OUTPUT);
@@ -21,7 +16,9 @@ void initDustSensor() {
 int16_t readDust() {
     digitalWrite(DUST_LED, LOW); 
     delayMicroseconds(280);
+
     int16_t adc0 = ads.readADC_SingleEnded(3);
+
     delayMicroseconds(40);
     digitalWrite(DUST_LED, HIGH); 
     delayMicroseconds(9680);
@@ -29,13 +26,6 @@ int16_t readDust() {
     float voltage = adc0 * 0.125 / 1000.0;
     float dustDensity = (voltage - 0.6) * (100.0 / 0.17);
     if (dustDensity < 0) dustDensity = 0;
-    int16_t result = (int16_t)(dustDensity * 10);
 
-    lastDustAverage = result; // store last sample
-    return result;
-}
-
-// Return last measured average when sensor sleeping
-int16_t getLastDustAverage() {
-    return lastDustAverage;
+    return (int16_t)(dustDensity * 10);
 }

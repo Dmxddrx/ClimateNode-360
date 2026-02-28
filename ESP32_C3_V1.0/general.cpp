@@ -14,9 +14,10 @@
 static float tempSum = 0, humSum = 0, dustSum = 0;
 static int sampleCount = 0;
 static int uploadCounter = 0;  // track how many uploads done
+static int32_t lastDustAverage = 0;
 
 void initGeneral() {
-    Serial.begin(115200);
+    Serial.begin(115200); 
     delay(100);
     DEBUG_MODE = true; 
 
@@ -37,7 +38,7 @@ void initGeneral() {
     12 = ESP_RST_JTAG         // JTAG reset    */
 
     esp_reset_reason_t reason = esp_reset_reason();
-    Serial.printf("Reset reason: %d\n", reason);
+    DEBUG_PRINTF("Reset reason: %d\n", reason);
 
     Wire.begin(6, 7);          // INIT I2C ONLY ONCE
     Wire.setClock(100000);
@@ -64,11 +65,12 @@ void collectSample() {
     delay(10);
 
     int16_t rawDust;
+
     // Only measure dust during first 5 samples of cycle
     if (uploadCounter % (SKIP_UPLOADS + 1) == 0) {
         rawDust = readDust();  // active measurement
     } else {
-        rawDust = getLastDustAverage();  // use last known average
+        rawDust = lastDustAverage;  // use last known average
     }    
 
     tempSum += rawTemp;
@@ -88,10 +90,18 @@ void uploadAverage() {
 
 
     SensorData localData;
-    localData.nodeId = 1;
+    localData.nodeId = 2;
     localData.temperature = (int32_t)(tempSum / sampleCount);
     localData.humidity    = (int32_t)(humSum / sampleCount);
     localData.dust        = (int32_t)(dustSum / sampleCount);
+
+        // Store dust average ONLY when this is real measurement cycle
+    if (uploadCounter % (SKIP_UPLOADS + 1) == 0) {
+        lastDustAverage = localData.dust;
+        //DEBUG_PRINTLN("New Dust Average Stored.");
+    } else {
+        //DEBUG_PRINTLN("Reusing Previous Dust Average.");
+    }
 
     if (uploadQueuedData(&localData, 1)) {
         DEBUG_PRINTLN("Upload Success.");
