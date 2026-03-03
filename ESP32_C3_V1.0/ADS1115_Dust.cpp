@@ -15,7 +15,7 @@ void initDustSensor() {
 
 int16_t readDust() {
     digitalWrite(DUST_LED, LOW); 
-    delayMicroseconds(280);
+    delayMicroseconds(1000); //minimum is 280 micro seconds
 
     int16_t adc0 = ads.readADC_SingleEnded(3);
 

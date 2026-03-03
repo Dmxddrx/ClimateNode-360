@@ -17,6 +17,9 @@
 #define WIFI_SSID "Dialog-0429"
 #define WIFI_PASS "hasith2001" 
 
+/*#define WIFI_SSID "Dialog 4G 079"
+#define WIFI_PASS "BA7b01b7" */
+
 // ================= LOCAL PHP SERVER =================
 #define SERVER_URL "http://192.168.8.147/ClimateNode_360/log_data.php"
 
