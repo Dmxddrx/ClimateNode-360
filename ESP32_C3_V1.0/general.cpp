@@ -4,6 +4,8 @@
 #include "serverconfig.h"
 #include "debugmode.h"
 #include "datatypes.h"
+#include "led.h"
+
 #include <WiFi.h>
 #include <Wire.h>
 #include <esp_task_wdt.h>
@@ -19,6 +21,11 @@ static int32_t lastDustAverage = 0;
 void initGeneral() {
     Serial.begin(115200); 
     delay(100);
+
+    initLED();
+
+    ledWifiConnect(); // Boot indicator
+
     DEBUG_MODE = true; 
 
     /*
@@ -68,7 +75,10 @@ void collectSample() {
 
     // Only measure dust during first 5 samples of cycle
     if (uploadCounter % (SKIP_UPLOADS + 1) == 0) {
+
+        //ledUpload();
         rawDust = readDust();  // active measurement
+
     } else {
         rawDust = lastDustAverage;  // use last known average
     }    
@@ -77,6 +87,8 @@ void collectSample() {
     humSum  += rawHum;
     dustSum += rawDust;
     sampleCount++;
+
+    ledSampleTaken(); // Sample indicator
 
     DEBUG_PRINTF("Sample #%d/%d Captured.\n", sampleCount, MAX_SAMPLES);
 
@@ -88,9 +100,10 @@ void collectSample() {
 void uploadAverage() {
     DEBUG_PRINTLN("Target reached. Muting I2C for WiFi...");
 
+    ledUpload(); // Upload indicator
 
     SensorData localData;
-    localData.nodeId = 1;
+    localData.nodeId = 2;
     localData.temperature = (int32_t)(tempSum / sampleCount);
     localData.humidity    = (int32_t)(humSum / sampleCount);
     localData.dust        = (int32_t)(dustSum / sampleCount);
@@ -105,8 +118,10 @@ void uploadAverage() {
 
     if (uploadQueuedData(&localData, 1)) {
         DEBUG_PRINTLN("Upload Success.");
+        ledServerResponse();   // success blink
     } else {
         DEBUG_PRINTLN("Upload Failed.");
+        ledWifiConnect();      // failure indicator
     }
 
 

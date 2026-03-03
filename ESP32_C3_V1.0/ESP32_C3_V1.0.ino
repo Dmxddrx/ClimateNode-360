@@ -2,6 +2,7 @@
 #include "SHT30.h"         
 #include "ADS1115_Dust.h"  
 #include "serverconfig.h"
+#include "led.h"
 
 unsigned long lastSampleTime = 0;
 const unsigned long SAMPLE_GAP = 15000; //  sec x 5 samples
@@ -13,7 +14,11 @@ void setup() {
 }
 
 void loop() {
+
     feedWatchdog();
+
+    ledUpdate();
+
     if (millis() - lastSampleTime >= SAMPLE_GAP) {
         lastSampleTime += SAMPLE_GAP; 
         collectSample();
