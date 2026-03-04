@@ -98,19 +98,26 @@ body::before {
 
 /* ================= INFO ================= */
 
+.node-id-label {
+    font-size: 13px;
+    opacity: 0.4;
+    margin-top: 4px;
+    letter-spacing: 1px;
+}
+
 .node-info {
     flex: 1;
 }
 
 .node-name {
     font-size: 20px;
-    opacity: 0.7;
+    opacity: 1;
 }
 
 .timestamp {
     font-size: 13px;
     opacity: 0.5;
-    text-align: center;
+    text-align: left;
     margin-top: 15px;
     margin-bottom: 10px;
 }

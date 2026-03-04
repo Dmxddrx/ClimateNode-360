@@ -103,7 +103,7 @@ void uploadAverage() {
     ledUpload(); // Upload indicator
 
     SensorData localData;
-    localData.nodeId = 2;
+    localData.nodeId = 3;
     localData.temperature = (int32_t)(tempSum / sampleCount);
     localData.humidity    = (int32_t)(humSum / sampleCount);
     localData.dust        = (int32_t)(dustSum / sampleCount);
@@ -111,7 +111,7 @@ void uploadAverage() {
         // Store dust average ONLY when this is real measurement cycle
     if (uploadCounter % (SKIP_UPLOADS + 1) == 0) {
         lastDustAverage = localData.dust;
-        //DEBUG_PRINTLN("New Dust Average Stored.");
+        //DEBUG_PRINTLN("New Dust Average Stored."); 
     } else {
         //DEBUG_PRINTLN("Reusing Previous Dust Average.");
     }

@@ -1,5 +1,13 @@
 <?php
 $conn = new mysqli("localhost", "root", "", "climatenode_360");
+
+$nodeNames = [
+    0 => "Outside - Court",
+    1 => "Workshop AC",
+    2 => "Workshop Non-AC",
+    3 => "Court"
+];
+
 $nodes_query = "SELECT * FROM sensor_network s1 
                  WHERE created_at = (SELECT MAX(created_at) FROM sensor_network s2 WHERE s1.node_id = s2.node_id)
                  ORDER BY node_id ASC";
@@ -13,6 +21,14 @@ $nodes_result = $conn->query($nodes_query);
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
+<script>
+setInterval(() => {
+    location.reload();
+}, 60000); // refresh every 60 seconds
+</script>
+
+
 <body>
 
 <h1 class="glass-panel-title">ClimateNode 360</h1>
@@ -23,10 +39,21 @@ $nodes_result = $conn->query($nodes_query);
             
             <div class="node-info">
 
-                <div class="node-name">Node <?php echo $row['node_id']; ?></div>
+                <div class="node-name">
+                    <?php 
+                        $id = $row['node_id'];
+                        echo isset($nodeNames[$id]) ? $nodeNames[$id] : "Node $id";
+                    ?>
+                </div>
+
+                <div class="node-id-label">
+                    Node ID: <?php echo $row['node_id']; ?>
+                </div>
                 
                 <div style="font-size: 3em;"><?php echo ($row['temp'] > 28) ? '☀️' : '❄'; ?></div> 
                 <div class="main-temp"><?php echo round($row['temp']); ?>°</div>
+
+                <div class="timestamp"><?php echo date('H:i:s', strtotime($row['created_at'])); ?></div>
                 
                 <div class="sub-data">
                     <div class="data-label">💧 Humidity</div>
@@ -34,9 +61,9 @@ $nodes_result = $conn->query($nodes_query);
                 </div>
                 <div class="sub-data">
                     <div class="data-label">🌫️ Dust</div>
-                    <div class="data-value"><?php echo $row['dust']; ?></div>
+                    <div class="data-value"><?php echo $row['dust']; ?> µg/m³</div>
                 </div>
-                <div class="timestamp"><?php echo date('H:i:s', strtotime($row['created_at'])); ?></div>
+                
             </div>
 
             <div class="inner-chart-container">
