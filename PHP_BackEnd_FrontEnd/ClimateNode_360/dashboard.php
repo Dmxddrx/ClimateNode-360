@@ -9,202 +9,213 @@ $nodeNames = [
 ];
 
 $nodes_query = "SELECT * FROM sensor_network s1 
-                 WHERE created_at = (SELECT MAX(created_at) FROM sensor_network s2 WHERE s1.node_id = s2.node_id)
+                 WHERE created_at = (
+                    SELECT MAX(created_at) 
+                    FROM sensor_network s2 
+                    WHERE s1.node_id = s2.node_id
+                 )
                  ORDER BY node_id ASC";
+
 $nodes_result = $conn->query($nodes_query);
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ClimateNode 360 | Interactive</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<title>ClimateNode 360</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+/* === SPLIT LAYOUT === */
+
+.dashboard-container{
+    display:flex;
+    padding:20px 40px 40px 40px;
+    gap:40px;
+}
+
+/* LEFT SIDE */
+.left-column{
+    width:350px;
+    display:flex;
+    flex-direction:column;
+    gap:30px;
+}
+
+/* RIGHT SIDE */
+.right-column{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:30px;
+}
+
+/* Graph container matching card style */
+.graph-card{
+    background: linear-gradient(145deg, #1c1f2e, #141626);
+    border-radius:25px;
+    padding:30px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+}
+
+.graph-card h3{
+    margin-top:0;
+    margin-bottom:20px;
+}
+
+canvas{
+    height:260px !important;
+}
+
+.node-widget.active{
+    box-shadow: 0 0 25px rgba(0,140,255,0.6);
+}
+
+</style>
 </head>
-
-<script>
-setInterval(() => {
-    location.reload();
-}, 60000); // refresh every 60 seconds
-</script>
-
 
 <body>
 
 <h1 class="glass-panel-title">ClimateNode 360</h1>
 
-<div class="nodes-grid" id="nodeGrid">
-    <?php while($row = $nodes_result->fetch_assoc()): ?>
-        <div class="node-widget" id="node-<?php echo $row['node_id']; ?>" onclick="toggleNode(<?php echo $row['node_id']; ?>)">
-            
-            <div class="node-info">
+<div class="dashboard-container">
 
-                <div class="node-name">
-                    <?php 
-                        $id = $row['node_id'];
-                        echo isset($nodeNames[$id]) ? $nodeNames[$id] : "Node $id";
-                    ?>
-                </div>
+<!-- LEFT SIDE -->
+<div class="left-column">
 
-                <div class="node-id-label">
-                    Node ID: <?php echo $row['node_id']; ?>
-                </div>
-                
-                <div style="font-size: 3em;"><?php echo ($row['temp'] > 28) ? '☀️' : '❄'; ?></div> 
-                <div class="main-temp"><?php echo round($row['temp']); ?>°</div>
+<?php while($row = $nodes_result->fetch_assoc()): ?>
 
-                <div class="timestamp"><?php echo date('H:i:s', strtotime($row['created_at'])); ?></div>
-                
-                <div class="sub-data">
-                    <div class="data-label">💧 Humidity</div>
-                    <div class="data-value"><?php echo $row['hum']; ?>%</div>
-                </div>
-                <div class="sub-data">
-                    <div class="data-label">🌫️ Dust</div>
-                    <div class="data-value"><?php echo $row['dust']; ?> µg/m³</div>
-                </div>
-                
-            </div>
+<?php
+$id = $row['node_id'];
+$name = $nodeNames[$id] ?? "Node $id";
+$temp = round($row['temp']);
+?>
 
-            <div class="inner-chart-container">
-                <canvas id="canvas-<?php echo $row['node_id']; ?>"></canvas>
-            </div>
+<div class="node-widget" onclick="selectNode(<?php echo $id; ?>, this)">
+
+    <div class="node-info">
+
+        <div class="node-name"><?php echo $name; ?></div>
+        <div class="node-id-label">Node ID: <?php echo $id; ?></div>
+
+        <div style="font-size:3em;">
+            <?php echo ($temp >= 28) ? '☀️' : '❄️'; ?>
         </div>
-    <?php endwhile; ?>
+
+        <div class="main-temp <?php echo ($temp >= 28) ? 'temp-hot' : 'temp-cold'; ?>">
+            <?php echo $temp; ?>°
+        </div>
+
+        <div class="timestamp">
+            <?php echo date('H:i:s', strtotime($row['created_at'])); ?>
+        </div>
+
+        <div class="sub-data">💧 <?php echo $row['hum']; ?>%</div>
+        <div class="sub-data">🌫️ <?php echo $row['dust']; ?> µg/m³</div>
+
+    </div>
+
+</div>
+
+<?php endwhile; ?>
+
+</div>
+
+<!-- RIGHT SIDE -->
+<div class="right-column">
+
+<div class="graph-card">
+    <h3 id="title">Select a Node</h3>
+</div>
+
+<div class="graph-card">
+    <h3>Today - Temperature</h3>
+    <canvas id="tempChart"></canvas>
+</div>
+
+<div class="graph-card">
+    <h3>Today - Humidity</h3>
+    <canvas id="humChart"></canvas>
+</div>
+
+<div class="graph-card">
+    <h3>Today - Dust</h3>
+    <canvas id="dustChart"></canvas>
+</div>
+
+<div class="graph-card">
+    <h3>Last 7 Days (Average Temperature)</h3>
+    <canvas id="weekChart"></canvas>
+</div>
+
+</div>
 </div>
 
 <script>
-let activeChart = null;
-let activeNodeId = null;
-let updateInterval = null;
 
-async function toggleNode(nodeId) {
+let currentNode=null;
+let charts={};
 
-    const target = document.getElementById('node-' + nodeId);
-    const expanded = target.classList.contains('expanded');
+function selectNode(nodeId,element){
 
-    if (updateInterval) clearInterval(updateInterval);
+    currentNode=nodeId;
 
     document.querySelectorAll('.node-widget')
-        .forEach(el => el.classList.remove('expanded'));
+        .forEach(el=>el.classList.remove('active'));
 
-    if (!expanded) {
-        target.classList.add('expanded');
-        await refreshData(nodeId);
+    element.classList.add('active');
 
-        updateInterval = setInterval(() => {
-            refreshData(nodeId);
-        }, 5000);
-    } else {
-        if (activeChart) activeChart.destroy();
-        activeChart = null;
-        activeNodeId = null;
-    }
+    document.getElementById("title").innerText="Node "+nodeId+" Analytics";
+
+    loadToday();
+    loadWeek();
 }
 
-async function refreshData(nodeId) {
-    try {
-        const res = await fetch(`get_history.php?node=${nodeId}`);
-        const data = await res.json();
+async function loadToday(){
+    const res=await fetch("api_today.php?node="+currentNode);
+    const data=await res.json();
 
-        if (!data.labels || !data.labels.length) return;
-
-        updateText(nodeId, data);
-        renderChart(nodeId, data.labels, data.temps, data.hums);
-    } catch (err) {
-        console.log("Fetch error:", err);
-    }
+    drawChart("tempChart","Temperature (°C)",data.labels,data.temps);
+    drawChart("humChart","Humidity (%)",data.labels,data.hums);
+    drawChart("dustChart","Dust (µg/m³)",data.labels,data.dusts);
 }
 
-function updateText(nodeId, data) {
-    const box = document.getElementById('node-' + nodeId);
-    const last = data.temps.length - 1;
-    const temp = Math.round(data.temps[last]);
+async function loadWeek(){
+    const res=await fetch("api_week.php?node="+currentNode);
+    const data=await res.json();
 
-    const tempEl = box.querySelector('.main-temp');
-    tempEl.innerText = temp + "°";
-    tempEl.classList.add("pop");
-    setTimeout(() => tempEl.classList.remove("pop"), 400);
-
-    tempEl.classList.remove("temp-hot","temp-cold");
-    if (temp >= 28) tempEl.classList.add("temp-hot");
-    else tempEl.classList.add("temp-cold");
-
-    box.querySelector('.timestamp').innerText =
-        "Live: " + data.labels[last];
-
-    box.querySelectorAll('.data-value')[1].innerText =
-        data.dusts[last];
+    drawChart("weekChart","Weekly Avg Temp",data.labels,data.avgTemps);
 }
 
-function renderChart(nodeId, labels, temps, hums) {
+function drawChart(id,label,labels,data){
 
-    const ctx = document
-        .getElementById('canvas-' + nodeId)
-        .getContext('2d');
+    if(charts[id]) charts[id].destroy();
 
-    if (activeChart && activeNodeId === nodeId) {
-        activeChart.data.labels = labels;
-        activeChart.data.datasets[0].data = temps;
-        activeChart.data.datasets[1].data = hums;
-        activeChart.update();
-        return;
-    }
-
-    if (activeChart) activeChart.destroy();
-
-    activeNodeId = nodeId;
-
-    activeChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    data: temps,
-                    tension: 0.4,
-                    fill: true,
-                    borderColor: '#ff4d6d',
-                    backgroundColor: (context) => {
-                        const chart = context.chart;
-                        const {ctx, chartArea} = chart;
-                        if (!chartArea) return null;
-                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                        gradient.addColorStop(0, "rgba(255,77,109,0.5)");
-                        gradient.addColorStop(1, "rgba(255,77,109,0)");
-                        return gradient;
-                }
-                },
-                {
-                    data: hums,
-                    borderColor: '#4cc9f0',
-                    tension: 0.4
-                }
-            ]
+    charts[id]=new Chart(document.getElementById(id),{
+        type:'line',
+        data:{
+            labels:labels,
+            datasets:[{
+                data:data,
+                borderColor:"#4cc9f0",
+                tension:0.3,
+                fill:false
+            }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: {
-                duration: 900,
-                easing: 'easeOutQuart'
-            },
-            plugins: { legend: { display: false } },
-            scales: {
-                y: {
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#aaa' }
-                },
-                x: {
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#aaa' }
-                }
+        options:{
+            responsive:true,
+            plugins:{legend:{display:false}},
+            scales:{
+                x:{ticks:{color:"#aaa"},grid:{color:"rgba(255,255,255,0.05)"}},
+                y:{ticks:{color:"#aaa"},grid:{color:"rgba(255,255,255,0.05)"}}
             }
         }
     });
 }
-</script>
 
+</script>
 
 </body>
 </html>
