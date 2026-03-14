@@ -16,7 +16,7 @@ struct WifiNetwork {
 static const WifiNetwork wifiList[] = {
     {"ENTGRA 2.5G", "Entgra@110"},        // Home
     {"Dmx's Note20 Ultra", "11111129"},   // Phone hotspot
-    {"Dialog 4G 208", "hasith2001"}       // Workshop
+    {"Dialog 4G 208", "Hasith2001"}       // Workshop
 };
 
 static const uint8_t WIFI_COUNT = sizeof(wifiList) / sizeof(wifiList[0]);

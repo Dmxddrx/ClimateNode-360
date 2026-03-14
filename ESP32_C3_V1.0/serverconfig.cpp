@@ -14,6 +14,10 @@ bool isNetworkAvailable() {
 
         DEBUG_PRINTF("Trying WiFi: %s\n", wifiList[i].ssid);
 
+        // Reset previous state
+        WiFi.disconnect(true);
+        delay(100);
+
         WiFi.begin(wifiList[i].ssid, wifiList[i].pass);
 
         uint32_t start = millis();
@@ -28,9 +32,7 @@ bool isNetworkAvailable() {
             DEBUG_PRINTF("IP: %s\n", WiFi.localIP().toString().c_str());
             return true;
         }
-
-        WiFi.disconnect(true);
-        delay(500);
+        DEBUG_PRINTLN("Connection attempt failed.");
     }
 
     DEBUG_PRINTLN("WiFi Failed.");
