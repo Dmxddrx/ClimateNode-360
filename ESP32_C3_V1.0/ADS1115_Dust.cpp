@@ -1,3 +1,7 @@
+// Data Sheet
+// https://global.sharp/products/device/lineup/data/pdf/datasheet/gp2y1010au_e.pdf
+
+
 #include "ADS1115_Dust.h"
 #include <Adafruit_ADS1X15.h>
 #include <Wire.h>
@@ -24,7 +28,7 @@ int16_t readDust() {
     delayMicroseconds(9680);
 
     float voltage = adc0 * 0.125 / 1000.0;
-    float dustDensity = (voltage - 0.6) * (100.0 / 0.17);
+    float dustDensity = (voltage - 0.9) * (100.0 / 0.17); // Output voltage at no dust 0.9V TYP & 1.5V MAX 
     if (dustDensity < 0) dustDensity = 0;
 
     return (int16_t)(dustDensity * 10);

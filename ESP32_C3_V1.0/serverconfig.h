@@ -7,18 +7,19 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 
-// ================= WIFI =================
-#define WIFI_SSID "ENTGRA 2.5G"
-#define WIFI_PASS "Entgra@110"
+// ================= WIFI LIST =================
+struct WifiNetwork {
+    const char* ssid;
+    const char* pass;
+};
 
-/*#define WIFI_SSID "Dmx's Note20 Ultra"
-#define WIFI_PASS "11111129"*/
+static const WifiNetwork wifiList[] = {
+    {"ENTGRA 2.5G", "Entgra@110"},        // Home
+    {"Dmx's Note20 Ultra", "11111129"},   // Phone hotspot
+    {"Dialog 4G 208", "hasith2001"}       // Workshop
+};
 
-/*#define WIFI_SSID "Dialog-0429"
-#define WIFI_PASS "hasith2001" */
-
-/*#define WIFI_SSID "Dialog 4G 079"
-#define WIFI_PASS "BA7b01b7" */
+static const uint8_t WIFI_COUNT = sizeof(wifiList) / sizeof(wifiList[0]);
 
 // ================= LOCAL PHP SERVER =================
 #define SERVER_URL "http://192.168.8.147/ClimateNode_360/log_data.php"

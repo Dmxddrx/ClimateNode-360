@@ -3,22 +3,34 @@
 #include <esp_task_wdt.h>
 
 bool isNetworkAvailable() {
-    if (WiFi.status() == WL_CONNECTED) return true;
+    if (WiFi.status() == WL_CONNECTED) 
+    return true;
 
     WiFi.mode(WIFI_STA);
     WiFi.setTxPower(WIFI_POWER_8_5dBm);
     WiFi.setSleep(false);   // VERY IMPORTANT FOR C3 STABILITY
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
 
-    uint32_t start = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
-        delay(100);
-        esp_task_wdt_reset();
-    }
+    for (uint8_t i = 0; i < WIFI_COUNT; i++) {
 
-    if (WiFi.status() == WL_CONNECTED) {
-        DEBUG_PRINTF("Connected! IP: %s\n", WiFi.localIP().toString().c_str());
-        return true;
+        DEBUG_PRINTF("Trying WiFi: %s\n", wifiList[i].ssid);
+
+        WiFi.begin(wifiList[i].ssid, wifiList[i].pass);
+
+        uint32_t start = millis();
+
+        while (WiFi.status() != WL_CONNECTED && millis() - start < 8000) {
+            delay(100);
+            esp_task_wdt_reset();
+        }
+
+        if (WiFi.status() == WL_CONNECTED) {
+            DEBUG_PRINTF("Connected to %s\n", wifiList[i].ssid);
+            DEBUG_PRINTF("IP: %s\n", WiFi.localIP().toString().c_str());
+            return true;
+        }
+
+        WiFi.disconnect(true);
+        delay(500);
     }
 
     DEBUG_PRINTLN("WiFi Failed.");
