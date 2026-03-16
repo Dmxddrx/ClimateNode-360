@@ -1,4 +1,6 @@
 <?php
+header('Content-Type: application/json');
+
 $conn = new mysqli("localhost", "root", "", "climatenode_360");
 
 $nodeId = intval($_GET['node']);
@@ -11,18 +13,16 @@ $query = "SELECT DATE(created_at) as day,
           GROUP BY DATE(created_at)
           ORDER BY day ASC";
 
-$result = $conn->query($query);
-
-$labels = [];
+$result   = $conn->query($query);
+$labels   = [];
 $avgTemps = [];
 
-while($row = $result->fetch_assoc()){
-    $labels[] = $row['day'];
-    $avgTemps[] = round($row['avgTemp'],2);
+while ($row = $result->fetch_assoc()) {
+    $labels[]   = $row['day'];
+    $avgTemps[] = round($row['avgTemp'], 2);
 }
 
 echo json_encode([
-    "labels"=>$labels,
-    "avgTemps"=>$avgTemps
+    "labels"   => $labels,
+    "avgTemps" => $avgTemps
 ]);
-?>
