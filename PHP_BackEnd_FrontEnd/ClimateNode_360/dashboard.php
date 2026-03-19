@@ -35,22 +35,39 @@ $nodes_result = $conn->query($nodes_query);
 
 .dashboard-container {
     display: flex;
+    flex-direction: column;
     padding: 20px 40px 40px 40px;
-    gap: 40px;
-}
-
-.left-column {
-    width: 350px;
-    display: flex;
-    flex-direction: column;
     gap: 30px;
 }
 
-.right-column {
+/* === TOP ROW: horizontal node cards === */
+.nodes-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: nowrap;
+}
+
+.nodes-row .node-widget {
     flex: 1;
+    min-width: 0;
+}
+
+/* === BOTTOM: charts area === */
+.charts-column {
     display: flex;
     flex-direction: column;
     gap: 30px;
+}
+
+/* Charts in a 2-column grid for wider screens */
+.charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.charts-grid .graph-card.full-width {
+    grid-column: 1 / -1;
 }
 
 /* === GRAPH CARDS === */
@@ -82,6 +99,26 @@ canvas {
 /* === ACTIVE CARD === */
 .node-widget.active {
     box-shadow: 0 0 25px rgba(0,140,255,0.6);
+}
+
+/* === COMPACT NODE CARD (horizontal row) === */
+.nodes-row .node-widget {
+    padding: 20px 22px;
+}
+
+.nodes-row .main-temp {
+    font-size: 52px;
+}
+
+.nodes-row .node-name {
+    font-size: 16px;
+}
+
+.nodes-row .sub-data {
+    font-size: 12px;
+    padding: 7px 12px;
+    margin-top: 8px;
+    margin-right: 6px;
 }
 
 /* === LIVE BADGE === */
@@ -137,7 +174,12 @@ canvas {
 #charts-area {
     display: none;
     flex-direction: column;
-    gap: 30px;
+    gap: 24px;
+}
+
+@media (max-width: 900px) {
+    .nodes-row { flex-wrap: wrap; }
+    .charts-grid { grid-template-columns: 1fr; }
 }
 
 /* === SUMMARY ROW === */
@@ -163,6 +205,42 @@ canvas {
     margin-top: 4px;
 }
 
+/* === CHART STAT BADGES === */
+.chart-stats {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+.stat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 13px;
+    border-radius: 20px;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.stat-max {
+    background: rgba(255, 77, 109, 0.15);
+    color: #ff6b85;
+    border: 1px solid rgba(255, 77, 109, 0.3);
+}
+
+.stat-min {
+    background: rgba(76, 201, 240, 0.12);
+    color: #4cc9f0;
+    border: 1px solid rgba(76, 201, 240, 0.25);
+}
+
+.stat-date {
+    opacity: 0.65;
+    font-weight: 400;
+}
+
 </style>
 </head>
 
@@ -180,8 +258,8 @@ canvas {
 
 <div class="dashboard-container">
 
-    <!-- LEFT: NODE CARDS -->
-    <div class="left-column">
+    <!-- TOP ROW: NODE CARDS (horizontal) -->
+    <div class="nodes-row">
 
     <?php while ($row = $nodes_result->fetch_assoc()): ?>
     <?php
@@ -197,7 +275,7 @@ canvas {
             <div class="node-name"><?php echo $name; ?></div>
             <div class="node-id-label">NODE <?php echo $id; ?></div>
 
-            <div id="node-icon-<?php echo $id; ?>" style="font-size:3em; margin-top:10px;">
+            <div id="node-icon-<?php echo $id; ?>" style="font-size:2.2em; margin-top:8px;">
                 <?php echo ($temp >= 28) ? '☀️' : '❄️'; ?>
             </div>
 
@@ -219,8 +297,8 @@ canvas {
 
     </div>
 
-    <!-- RIGHT: CHARTS -->
-    <div class="right-column">
+    <!-- BOTTOM: CHARTS -->
+    <div class="charts-column">
 
         <!-- Shown when no node is selected -->
         <div id="select-placeholder" class="graph-card">
@@ -239,37 +317,56 @@ canvas {
                 <div class="summary-row">
                     <div class="summary-pill">
                         🌡️ Temperature
-                        <span class="pill-value" id="pill-temp">—</span>
+                        <span class="pill-value" id="pill-temp">-</span>
                     </div>
                     <div class="summary-pill">
                         💧 Humidity
-                        <span class="pill-value" id="pill-hum">—</span>
+                        <span class="pill-value" id="pill-hum">-</span>
                     </div>
                     <div class="summary-pill">
                         🌫️ Dust
-                        <span class="pill-value" id="pill-dust">—</span>
+                        <span class="pill-value" id="pill-dust">-</span>
                     </div>
                 </div>
             </div>
 
-            <div class="graph-card">
-                <h3>Today — Temperature (°C)</h3>
-                <canvas id="tempChart"></canvas>
-            </div>
+            <!-- 2-column chart grid -->
+            <div class="charts-grid">
+                <div class="graph-card">
+                    <h3>Today - Temperature (°C)</h3>
+                    <div class="chart-stats" id="stats-tempChart"></div>
+                    <canvas id="tempChart"></canvas>
+                </div>
 
-            <div class="graph-card">
-                <h3>Today — Humidity (%)</h3>
-                <canvas id="humChart"></canvas>
-            </div>
+                <div class="graph-card">
+                    <h3>Today - Humidity (%)</h3>
+                    <div class="chart-stats" id="stats-humChart"></div>
+                    <canvas id="humChart"></canvas>
+                </div>
 
-            <div class="graph-card">
-                <h3>Today — Dust (µg/m³)</h3>
-                <canvas id="dustChart"></canvas>
-            </div>
+                <div class="graph-card">
+                    <h3>Today - Dust (µg/m³)</h3>
+                    <div class="chart-stats" id="stats-dustChart"></div>
+                    <canvas id="dustChart"></canvas>
+                </div>
 
-            <div class="graph-card">
-                <h3>Last 7 Days — Avg Temperature</h3>
-                <canvas id="weekChart"></canvas>
+                <div class="graph-card full-width">
+                    <h3>Last 7 Days - Avg Temperature (°C)</h3>
+                    <div class="chart-stats" id="stats-weekChart"></div>
+                    <canvas id="weekChart"></canvas>
+                </div>
+
+                <div class="graph-card">
+                    <h3>Last 7 Days - Avg Humidity (%)</h3>
+                    <div class="chart-stats" id="stats-weekHumChart"></div>
+                    <canvas id="weekHumChart"></canvas>
+                </div>
+
+                <div class="graph-card">
+                    <h3>Last 7 Days - Avg Dust (µg/m³)</h3>
+                    <div class="chart-stats" id="stats-weekDustChart"></div>
+                    <canvas id="weekDustChart"></canvas>
+                </div>
             </div>
 
         </div>
@@ -293,13 +390,36 @@ function selectNode(nodeId, element) {
     element.classList.add('active');
 
     const nodeName = element.querySelector('.node-name').innerText;
-    document.getElementById('title').innerText = nodeName + ' — Analytics';
+    document.getElementById('title').innerText = nodeName + ' - Analytics';
 
     document.getElementById('select-placeholder').style.display = 'none';
     document.getElementById('charts-area').style.display        = 'flex';
 
     loadToday();
     loadWeek();
+}
+
+// ─── Stat badge helpers ───────────────────────────────────────────────────────
+function setStats(id, data, unit) {
+    const el = document.getElementById('stats-' + id);
+    if (!el || !data.length) return;
+    const max = Math.max(...data);
+    const min = Math.min(...data);
+    el.innerHTML =
+        `<span class="stat-badge stat-max">▲ Max &nbsp;<strong>${max}</strong> ${unit}</span>` +
+        `<span class="stat-badge stat-min">▼ Min &nbsp;<strong>${min}</strong> ${unit}</span>`;
+}
+
+function setWeekStats(id, labels, data, unit) {
+    const el = document.getElementById('stats-' + id);
+    if (!el || !data.length) return;
+    const max     = Math.max(...data);
+    const min     = Math.min(...data);
+    const maxDate = labels[data.indexOf(max)];
+    const minDate = labels[data.indexOf(min)];
+    el.innerHTML =
+        `<span class="stat-badge stat-max">▲ Max &nbsp;<strong>${max}</strong> ${unit} <span class="stat-date">· ${maxDate}</span></span>` +
+        `<span class="stat-badge stat-min">▼ Min &nbsp;<strong>${min}</strong> ${unit} <span class="stat-date">· ${minDate}</span></span>`;
 }
 
 // ─── Fetch & draw today's charts ─────────────────────────────────────────────
@@ -319,6 +439,10 @@ async function loadToday() {
         drawChart("tempChart",  data.labels, data.temps,  "#ff4d6d", "rgba(255,77,109,0.15)");
         drawChart("humChart",   data.labels, data.hums,   "#4cc9f0", "rgba(76,201,240,0.12)");
         drawChart("dustChart",  data.labels, data.dusts,  "#f8961e", "rgba(248,150,30,0.12)");
+
+        setStats("tempChart",  data.temps,  "°C");
+        setStats("humChart",   data.hums,   "%");
+        setStats("dustChart",  data.dusts,  "µg/m³");
     } catch(e) {
         console.warn("loadToday error:", e);
     }
@@ -328,7 +452,13 @@ async function loadWeek() {
     try {
         const res  = await fetch("api_week.php?node=" + currentNode);
         const data = await res.json();
-        drawChart("weekChart", data.labels, data.avgTemps, "#90e0ef", "rgba(144,224,239,0.1)");
+        drawChart("weekChart",     data.labels, data.avgTemps, "#90e0ef", "rgba(144,224,239,0.1)");
+        drawChart("weekHumChart",  data.labels, data.avgHums,  "#4cc9f0", "rgba(76,201,240,0.12)");
+        drawChart("weekDustChart", data.labels, data.avgDusts, "#f8961e", "rgba(248,150,30,0.12)");
+
+        setWeekStats("weekChart",     data.labels, data.avgTemps, "°C");
+        setWeekStats("weekHumChart",  data.labels, data.avgHums,  "%");
+        setWeekStats("weekDustChart", data.labels, data.avgDusts, "µg/m³");
     } catch(e) {
         console.warn("loadWeek error:", e);
     }
