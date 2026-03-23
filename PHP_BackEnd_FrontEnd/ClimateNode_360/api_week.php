@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 
-$conn = new mysqli("localhost", "root", "", "climatenode_360");
+$conn = new mysqli("localhost", "admin", "admin", "climatenode_360");
 
 $nodeId = intval($_GET['node']);
 

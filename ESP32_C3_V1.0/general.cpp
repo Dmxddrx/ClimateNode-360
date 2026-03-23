@@ -103,7 +103,7 @@ void uploadAverage() {
     ledUpload(); // Upload indicator
 
     SensorData localData;
-    localData.nodeId = 1;
+    localData.nodeId = 3;
     localData.temperature = (int32_t)(tempSum / sampleCount);
     localData.humidity    = (int32_t)(humSum / sampleCount);
     localData.dust        = (int32_t)(dustSum / sampleCount);

@@ -1,10 +1,10 @@
 <?php
-$conn = new mysqli("localhost", "root", "", "climatenode_360");
+$conn = new mysqli("localhost", "admin", "admin", "climatenode_360");
 
 $nodeNames = [
-    0 => "Outside - Court",
+    0 => "Workshop Non-AC",
     1 => "Workshop AC",
-    2 => "Workshop Non-AC",
+    2 => "Outside - Court",
     3 => "Court"
 ];
 

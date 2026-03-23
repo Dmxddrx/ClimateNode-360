@@ -1,5 +1,6 @@
 <?php
-$conn = new mysqli("localhost", "root", "", "climatenode_360");
+$conn = new mysqli("localhost", "admin", "admin", "climatenode_360");
+
 $nodeId = intval($_GET['node']);
 
 $query = "SELECT created_at, temp, hum, dust 
